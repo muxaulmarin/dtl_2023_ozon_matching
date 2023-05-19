@@ -10,6 +10,11 @@ repos:
       - id: check-merge-conflict
       - id: detect-private-key
 
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.269
+    hooks:
+      - id: ruff
+
   - repo: local
     hooks:
       - id: isort

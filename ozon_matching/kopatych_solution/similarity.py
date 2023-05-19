@@ -14,9 +14,12 @@ class SimilarityEngine:
         if self.index_col not in data.columns or self.vector_col not in data.columns:
             raise ValueError("")
 
+        data = data.select(pl.col([self.index_col, self.vector_col]))
+
         mapping = {}
         vectors = []
-        for i, row in enumerate(data.select(pl.col([self.index_col, self.vector_col])).iter_rows()):  # type: ignore
+
+        for i, row in enumerate(data.iter_rows()):
             mapping[row[0]] = i
             vectors.append(np.array(row[1]).reshape(1, -1))
 
@@ -34,7 +37,8 @@ class SimilarityEngine:
     def get_similarity(self, indexes_a: List[int], indexes_b: List[int]):
         try:
             return np.dot(
-                self._get_vectors(self._get_indexes(indexes_a)), self._get_vectors(self._get_indexes(indexes_b)).T
+                self._get_vectors(self._get_indexes(indexes_a)),
+                self._get_vectors(self._get_indexes(indexes_b)).T,
             )
         except KeyError:
             return 0

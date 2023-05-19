@@ -4,7 +4,10 @@ from sklearn.metrics import auc, precision_recall_curve
 
 
 def pr_auc_macro(
-    target_df: pd.DataFrame, predictions_df: pd.DataFrame, prec_level: float = 0.75, cat_column: str = "cat3_grouped"
+    target_df: pd.DataFrame,
+    predictions_df: pd.DataFrame,
+    prec_level: float = 0.75,
+    cat_column: str = "cat3_grouped",
 ) -> float:
 
     df = target_df.merge(predictions_df, on=["variantid1", "variantid2"])
