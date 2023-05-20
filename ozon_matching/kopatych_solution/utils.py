@@ -1,6 +1,9 @@
+import os
 from typing import List
 
+import joblib
 import polars as pl
+from loguru import logger
 
 
 def extract_category_levels(
@@ -16,3 +19,19 @@ def extract_category_levels(
             for level in levels
         ]
     )
+
+
+def write_model(path, model):
+    folder = os.path.dirname(path)
+    if not os.path.exists(folder):
+        logger.info(f"Create dir - {folder}")
+        os.mkdir(folder)
+    logger.info(f"Save model to {folder}")
+    with open(path, "wb") as f:
+        joblib.dump(model, f)
+
+
+def load_model(path, model):
+    with open(path, "rb") as f:
+        model = joblib.load(f)
+    return model

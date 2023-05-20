@@ -161,5 +161,6 @@ cython_debug/
 
 data/
 tmp_data/
+experiments/
 
 .ruff_cache/
