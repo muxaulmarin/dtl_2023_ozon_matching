@@ -1,16 +1,19 @@
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import polars as pl
+from loguru import logger
 from sklearn.preprocessing import normalize
 
 
 class SimilarityEngine:
     def __init__(self, index_col: str, vector_col: str):
+        logger.info(f"Init SimilarityEngine for {vector_col}")
         self.index_col = index_col
         self.vector_col = vector_col
 
     def fit(self, data: pl.DataFrame):
+        logger.info(f"Fit SimilarityEngine for {self.vector_col}")
         if self.index_col not in data.columns or self.vector_col not in data.columns:
             raise ValueError("")
 
@@ -28,17 +31,11 @@ class SimilarityEngine:
         self.mapping: Dict[int, int] = mapping
         self.vectors: np.ndarray = norm_vectors
 
-    def _get_indexes(self, indexes: List[int]) -> List[int]:
-        return [self.mapping[index] for index in indexes]
-
-    def _get_vectors(self, indexes):
-        return self.vectors[indexes]
-
-    def get_similarity(self, indexes_a: List[int], indexes_b: List[int]):
+    def get_similarity(self, index_a: int, index_b: int):
         try:
-            return np.dot(
-                self._get_vectors(self._get_indexes(indexes_a)),
-                self._get_vectors(self._get_indexes(indexes_b)).T,
-            )
+            vector_a = self.vectors[self.mapping[index_a]].reshape(1, -1)
+            vector_b = self.vectors[self.mapping[index_b]].reshape(1, -1)
+            return np.dot(vector_a, vector_b.T)
         except KeyError:
+            logger.info(f"Error for {index_a} and {index_b}")
             return 0

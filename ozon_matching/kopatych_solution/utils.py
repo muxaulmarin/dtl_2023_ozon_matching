@@ -1,4 +1,6 @@
+import json
 import os
+from functools import wraps
 from typing import List
 
 import joblib
@@ -22,16 +24,64 @@ def extract_category_levels(
 
 
 def write_model(path, model):
-    folder = os.path.dirname(path)
-    if not os.path.exists(folder):
-        logger.info(f"Create dir - {folder}")
-        os.mkdir(folder)
-    logger.info(f"Save model to {folder}")
+    _ = get_and_create_dir(os.path.dirname(path))
+    logger.info(f"Save model to {path}")
     with open(path, "wb") as f:
         joblib.dump(model, f)
 
 
-def load_model(path, model):
+def read_model(path):
+    logger.info(f"Read Model from {path}")
     with open(path, "rb") as f:
         model = joblib.load(f)
     return model
+
+
+def read_json(path):
+    logger.info(f"Read JSON from {path}")
+    with open(path) as f:
+        return json.load(f)
+
+
+def write_json(data, path):
+    logger.info(f"Write JSON to {path}")
+    with open(path, "w") as f:
+        json.dump(data, f)
+
+
+def read_parquet(path: str, columns: List[str] = None) -> pl.DataFrame:
+    logger.info(f"Read Parquet from {path}")
+    data = pl.read_parquet(path, columns=columns)
+    logger.info(f"N Rows in data - {data.shape[0]}")
+    return data
+
+
+def write_parquet(data: pl.DataFrame, path: str):
+    logger.info(f"Write Parquet to {path}")
+    logger.info(f"N Rows in data - {data.shape[0]}")
+    data.write_parquet(path)
+
+
+def get_and_create_dir(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+    return path
+
+
+def start_logger(cli: str):
+    return "\n" * 2 + (" " * 50) + ("-" * 10) + f"Start {cli}" + ("-" * 10) + "\n" * 2
+
+
+def end_logger(cli: str):
+    return "\n" * 2 + (" " * 50) + ("-" * 10) + f"End {cli}" + ("-" * 10) + "\n" * 2
+
+
+def log_cli(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.info(start_logger(func.__name__))
+        result = func(*args, **kwargs)
+        logger.info(end_logger(func.__name__))
+        return result
+
+    return wrapper
