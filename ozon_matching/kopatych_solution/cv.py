@@ -16,12 +16,15 @@ def random_kfold(
         )
 
 
-def stratified_k_fold(data: pl.DataFrame, stratify_col: str, k=5, random_state=13):
+def stratified_k_fold(
+    data: pl.DataFrame, stratify_col: str, k=5, random_state=13
+) -> Iterator[Tuple[int, pl.DataFrame, pl.DataFrame]]:
     skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=random_state)
     cv = skf.split(data, data[stratify_col].to_numpy())
-
+    n = 1
     for train_indecies, test_indecies in cv:
         yield (
+            n,
             data.join(
                 pl.DataFrame(train_indecies, schema={"index": pl.UInt32}), on=["index"]
             ),
@@ -29,3 +32,4 @@ def stratified_k_fold(data: pl.DataFrame, stratify_col: str, k=5, random_state=1
                 pl.DataFrame(test_indecies, schema={"index": pl.UInt32}), on=["index"]
             ),
         )
+        n += 1

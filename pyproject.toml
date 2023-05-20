@@ -19,6 +19,7 @@ tqdm = "^4.65.0"
 lightgbm = "^3.3.5"
 catboost = "^1.2"
 typer-cli = "^0.0.13"
+loguru = "^0.7.0"
 
 
 [tool.poetry.group.dev.dependencies]
