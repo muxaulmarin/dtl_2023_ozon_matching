@@ -16,7 +16,7 @@ def dummpy_cli():
 
 
 @cli.command()
-def split_data_for_cv(data_dir: str = Option(...)):
+def split_data_for_cv(data_dir: str = Option(...), n_folds: int = Option(...)):
     pairs = pl.read_parquet(os.path.join(data_dir, "data", "train_pairs.parquet"))
     pairs = pairs.with_columns([pl.col("target").cast(pl.Int8)])
     pairs = pairs.with_row_count(name="index")
@@ -40,7 +40,7 @@ def split_data_for_cv(data_dir: str = Option(...)):
     pairs = pairs.join(cv_target, on=["target", "category_level_3"])
 
     for n, train_pairs, valid_pairs in stratified_k_fold(
-        data=pairs, stratify_col="cv_target", k=3
+        data=pairs, stratify_col="cv_target", k=int(n_folds)
     ):
         cv_folder = os.path.join(data_dir, f"cv_{n}")
         if not os.path.exists(cv_folder):
