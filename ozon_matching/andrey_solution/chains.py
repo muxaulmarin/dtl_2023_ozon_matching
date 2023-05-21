@@ -123,8 +123,8 @@ def _enrich(
 
 
 if __name__ == "__main__":
-    from ozon_matching.andrey_solution.io import read_pairs
+    from ozon_matching.andrey_solution.preprocessing import preprocess_pairs
 
-    pairs = read_pairs("data/raw/train_pairs.parquet")
+    pairs = preprocess_pairs(pl.read_parquet("data/raw/train_pairs.parquet"))
     with_chains = enrich_by_chains(pairs, max_nodes=120, cutoff=None)
     with_chains.write_parquet("data/processed/enriched_train_pairs.pq")
