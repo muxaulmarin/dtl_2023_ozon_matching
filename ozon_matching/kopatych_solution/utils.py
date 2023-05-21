@@ -45,6 +45,7 @@ def read_json(path):
 
 def write_json(data, path):
     logger.info(f"Write JSON to {path}")
+    _ = get_and_create_dir(os.path.dirname(path))
     with open(path, "w") as f:
         json.dump(data, f)
 
@@ -57,8 +58,8 @@ def read_parquet(path: str, columns: List[str] = None) -> pl.DataFrame:
 
 
 def write_parquet(data: pl.DataFrame, path: str):
-    logger.info(f"Write Parquet to {path}")
-    logger.info(f"N Rows in data - {data.shape[0]}")
+    logger.info(f"Write Parquet to {path}, N Rows in data - {data.shape[0]}")
+    _ = get_and_create_dir(os.path.dirname(path))
     data.write_parquet(path)
 
 

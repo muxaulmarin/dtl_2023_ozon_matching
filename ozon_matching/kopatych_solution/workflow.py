@@ -4,10 +4,11 @@ import lightgbm
 import numpy as np
 import pandas as pd
 import polars as pl
-from loguru import logger
 from ozon_matching.kopatych_solution.config.model_cfg import lgbm_params
 from ozon_matching.kopatych_solution.cv import stratified_k_fold
 from ozon_matching.kopatych_solution.features import (
+    _create_characteristics_dict,
+    _create_characteristics_keys,
     create_characteristic_features,
     create_sim_feature,
 )
@@ -17,31 +18,81 @@ from ozon_matching.kopatych_solution.utils import (
     extract_category_levels,
     get_and_create_dir,
     log_cli,
+    read_json,
     read_model,
     read_parquet,
     write_json,
     write_model,
     write_parquet,
 )
+from sklearn.metrics import roc_auc_score
 from typer import Option, Typer
 
 cli = Typer()
 
 
 @cli.command()
-def dummpy_cli():
-    logger.info("Dummy CLI")
+@log_cli
+def create_characteristics_dict(
+    data_dir: str = Option(...), experiment: str = Option(...)
+):
+    train_data = read_parquet(
+        os.path.join(data_dir, "data", "train", "data.parquet"),
+        columns=["variantid", "characteristic_attributes_mapping", "categories"],
+    )
+    test_data = read_parquet(
+        os.path.join(data_dir, "data", "test", "data.parquet"),
+        columns=["variantid", "characteristic_attributes_mapping", "categories"],
+    )
+    data = pl.concat([train_data, test_data]).unique(subset=["variantid"])
+    characteristics_dict = _create_characteristics_dict(data)
+    write_json(
+        characteristics_dict,
+        os.path.join(data_dir, experiment, "characteristics_dict.json"),
+    )
+
+    train_pairs = read_parquet(
+        os.path.join(data_dir, "data", "train", "pairs.parquet"),
+        columns=["variantid1", "variantid2"],
+    )
+    test_pairs = read_parquet(
+        os.path.join(data_dir, "data", "test", "pairs.parquet"),
+        columns=["variantid1", "variantid2"],
+    )
+    pairs = pl.concat([train_pairs, test_pairs]).unique()
+    characteristics_index = {
+        characteristic: i
+        for i, characteristic in enumerate(
+            _create_characteristics_keys(pairs, characteristics_dict)
+        )
+    }
+    write_json(
+        characteristics_index,
+        os.path.join(data_dir, experiment, "characteristics_index.json"),
+    )
+
+    data = extract_category_levels(data, [3], "categories")
+    categories = (
+        data.select(pl.col("category_level_3"))
+        .unique()
+        .with_row_count(name="category_level_3_id")
+    )
+    write_parquet(categories, os.path.join(data_dir, experiment, "categories.parquet"))
 
 
 @cli.command()
 @log_cli
-def split_data_for_cv(data_dir: str = Option(...), n_folds: int = Option(...)):
+def split_data_for_cv(
+    data_dir: str = Option(...),
+    n_folds: int = Option(...),
+    experiment: str = Option(...),
+):
 
-    pairs = read_parquet(os.path.join(data_dir, "data", "train_pairs.parquet"))
+    pairs = read_parquet(os.path.join(data_dir, "data", "train", "pairs.parquet"))
     pairs = pairs.with_columns([pl.col("target").cast(pl.Int8)])
     pairs = pairs.with_row_count(name="index")
 
-    data = read_parquet(os.path.join(data_dir, "data", "train_data.parquet"))
+    data = read_parquet(os.path.join(data_dir, "data", "train", "data.parquet"))
     data = extract_category_levels(data, [3], "categories")
 
     pairs = pairs.join(
@@ -55,6 +106,7 @@ def split_data_for_cv(data_dir: str = Option(...), n_folds: int = Option(...)):
     cv_target = (
         pairs.select(pl.col(["target", "category_level_3"]))
         .unique()
+        .sort(["category_level_3", "target"])
         .with_row_count(name="cv_target")
     )
     pairs = pairs.join(cv_target, on=["target", "category_level_3"])
@@ -62,7 +114,7 @@ def split_data_for_cv(data_dir: str = Option(...), n_folds: int = Option(...)):
     for n, train_pairs, test_pairs in stratified_k_fold(
         data=pairs, stratify_col="cv_target", k=int(n_folds)
     ):
-        cv_folder = get_and_create_dir(os.path.join(data_dir, f"cv_{n}"))
+        cv_folder = get_and_create_dir(os.path.join(data_dir, experiment, f"cv_{n}"))
         train_folder = get_and_create_dir(os.path.join(cv_folder, "train"))
         test_folder = get_and_create_dir(os.path.join(cv_folder, "test"))
 
@@ -135,16 +187,17 @@ def create_characteristics_features(
     data_dir: str = Option(...), fold_type: str = Option(...)
 ):
     pairs = read_parquet(os.path.join(data_dir, fold_type, "pairs.parquet"))
-    train_data = read_parquet(
-        os.path.join(data_dir, "train", "data.parquet"),
-        columns=["variantid", "characteristic_attributes_mapping"],
+
+    characteristics_index = read_json(
+        os.path.join(os.path.dirname(data_dir), "characteristics_index.json")
     )
-    test_data = read_parquet(
-        os.path.join(data_dir, "test", "data.parquet"),
-        columns=["variantid", "characteristic_attributes_mapping"],
+    characteristics_dict = read_json(
+        os.path.join(os.path.dirname(data_dir), "characteristics_dict.json")
     )
-    data = pl.concat([train_data, test_data])
-    feature = create_characteristic_features(data, pairs)
+    feature = create_characteristic_features(
+        pairs, characteristics_index, characteristics_dict
+    )
+
     fodler = get_and_create_dir(os.path.join(data_dir, fold_type, "features"))
     write_parquet(feature, os.path.join(fodler, "characteristics_features.parquet"))
 
@@ -152,12 +205,11 @@ def create_characteristics_features(
 @cli.command()
 @log_cli
 def create_dataset(data_dir: str = Option(...), fold_type: str = Option(...)):
+
     pairs = read_parquet(os.path.join(data_dir, fold_type, "pairs.parquet"))
     pairs = pairs.drop(["index", "cv_target"])
-    categories = (
-        pairs.select(pl.col("category_level_3"))
-        .unique()
-        .with_row_count(name="category_level_3_id")
+    categories = read_parquet(
+        os.path.join(os.path.dirname(data_dir), "categories.parquet")
     )
     pairs = pairs.join(categories, on=["category_level_3"]).drop("category_level_3")
 
@@ -192,7 +244,7 @@ def create_dataset(data_dir: str = Option(...), fold_type: str = Option(...)):
     dataset_pandas = dataset.to_pandas()
 
     lgbm_dataset = lightgbm.Dataset(
-        data=dataset_pandas.drop(columns=["target"]),
+        data=dataset_pandas.drop(columns=["target", "variantid1", "variantid2"]),
         label=dataset_pandas["target"].values,
         reference=None
         if fold_type == "train"
@@ -253,7 +305,39 @@ def evaluate(data_dir: str = Option(...), fold_type: str = Option(...)):
     score = pr_auc_macro(
         target, predictions, prec_level=0.75, cat_column="category_level_3"
     )
-    write_json({"score": score}, os.path.join(data_dir, fold_type, "score.json"))
+    roc_auc = roc_auc_score(target["target"].values, predictions["scores"].values)
+    write_json(
+        {"competition_metric": score, "rocauc": roc_auc},
+        os.path.join(data_dir, fold_type, "score.json"),
+    )
+
+
+@cli.command()
+@log_cli
+def cv_scores(
+    data_dir: str = Option(...),
+    n_folds: int = Option(...),
+    experiment: str = Option(...),
+):
+    metrics = {}
+    for fold_type in ["train", "test"]:
+        scores = {"competition_metric": [], "rocauc": []}
+        for n in range(1, n_folds + 1):
+            path = os.path.join(
+                data_dir, experiment, f"cv_{n}", fold_type, "score.json"
+            )
+            data = read_json(path)
+            scores["competition_metric"].append(data["competition_metric"])
+            scores["rocauc"].append(data["rocauc"])
+        metrics[fold_type] = {
+            "competition_metric": scores["competition_metric"],
+            "avg_competition_metric": np.mean(scores["competition_metric"]),
+            "std_competition_metric": np.std(scores["competition_metric"]),
+            "rocauc": scores["rocauc"],
+            "avg_rocauc": np.mean(scores["rocauc"]),
+            "std_rocauc": np.std(scores["rocauc"]),
+        }
+    write_json(metrics, os.path.join(data_dir, experiment, "cv_result.json"))
 
 
 if __name__ == "__main__":

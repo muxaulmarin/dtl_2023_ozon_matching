@@ -8,7 +8,7 @@
 
 n_folds=5
 workflow=ozon_matching/kopatych_solution/workflow.py
-experiment=v2
+experiment=v3
 
 python $workflow create-characteristics-dict --data-dir data --experiment $experiment
 python $workflow split-data-for-cv --data-dir data --n-folds $n_folds --experiment $experiment
