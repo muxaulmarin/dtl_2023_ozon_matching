@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from loguru import logger
 from sklearn.metrics import auc, precision_recall_curve
 
 
@@ -12,9 +13,11 @@ def pr_auc_macro(
 
     df = target_df.merge(predictions_df, on=["variantid1", "variantid2"])
 
-    y_true = df["target"]
-    y_pred = df["scores"]
-    categories = df[cat_column]
+    y_true = df["target"].values
+    y_pred = df["scores"].values
+    categories = df[cat_column].values
+
+    logger.info(f"df size - {df.shape}, n cat - {categories.size}")
 
     weights = []
     pr_aucs = []
