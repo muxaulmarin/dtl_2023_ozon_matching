@@ -28,7 +28,9 @@ class CatBoostCV:
         self.pool_params = pool_params
         self.splitter = splitter
 
-    def fit(self, train: pl.DataFrame, verbose: int = 1_000) -> list[dict[str, float]]:
+    def fit(
+        self, train: pl.DataFrame, verbose: Optional[int] = None
+    ) -> list[dict[str, float]]:
         self.models_ = []
         self.metrics_ = []
 
@@ -39,7 +41,11 @@ class CatBoostCV:
                 val_fold
             )
             fold_model = cb.CatBoostClassifier(**self.model_params)
-            fold_model.fit(train_fold_pool, eval_set=val_fold_pool, verbose=verbose)
+            fold_model.fit(
+                train_fold_pool,
+                eval_set=val_fold_pool,
+                verbose=verbose or self.model_params.get("early_stopping_rounds"),
+            )
             self.models_.append(fold_model)
 
             fold_metrics = calc_metrics(
