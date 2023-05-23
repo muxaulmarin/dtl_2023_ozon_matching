@@ -12,6 +12,7 @@ from ozon_matching.kopatych_solution.features import (
     _create_characteristics_keys,
     create_characteristic_features_v5,
 )
+from sklearn.model_selection import KFold
 from ozon_matching.kopatych_solution.similarity import SimilarityEngine
 from ozon_matching.kopatych_solution.utils import (
     extract_category_levels,
@@ -233,6 +234,8 @@ def split_data_for_cv_v6(
         write_parquet(
             test_data, os.path.join(data_dir, f"cv_{n}", "test", "data.parquet")
         )
+
+
 
 
 # @cli.command()
@@ -510,6 +513,52 @@ def create_dataset(data_dir: str = Option(...), fold_type: str = Option(...)):
     write_parquet(dataset, os.path.join(data_dir, fold_type, "dataset.parquet"))
 
 
+@cli.command()
+@log_cli
+def create_dataset_v7(data_dir: str = Option(...), fold_type: str = Option(...)):
+
+    pairs = read_parquet(os.path.join(data_dir, fold_type, "pairs.parquet"))
+
+    pic_sim_features = read_parquet(
+        os.path.join(
+            data_dir,
+            fold_type,
+            "similarity_features_main_pic_embeddings_resnet_v1.parquet",
+        )
+    )
+    name_sim_features = read_parquet(
+        os.path.join(data_dir, fold_type, "similarity_features_name_bert_64.parquet")
+    )
+    characteristics_features = read_parquet(
+        os.path.join(data_dir, fold_type, "characteristics_features.parquet")
+    )
+
+    categories = read_parquet(
+        os.path.join(data_dir, fold_type, "data.parquet"),
+        columns=[
+            "category_level_3_id",
+            "category_level_4_id",
+            "category_level_3_id_grouped",
+            "variantid",
+        ],
+    )
+    categories = categories.rename({"variantid": "variantid1"})
+
+    sergey_oof_predictions = read_parquet('data/oof.parquet').rename({'target': 'sergey_oof_predictions'})
+
+    dataset = (
+        pairs.join(pic_sim_features, on=["variantid1", "variantid2"])
+        .join(name_sim_features, on=["variantid1", "variantid2"])
+        .join(characteristics_features, on=["variantid1", "variantid2"])
+        .join(sergey_oof_predictions, on=["variantid1", "variantid2"])
+        .join(categories, on=["variantid1"])
+    )
+    write_parquet(dataset, os.path.join(data_dir, fold_type, "dataset.parquet"))
+
+
+    
+
+
 # @cli.command()
 # @log_cli
 # def create_dataset(data_dir: str = Option(...), fold_type: str = Option(...)):
@@ -583,6 +632,33 @@ def fit_model(data_dir: str = Option(...), params_version: str = Option(...)):
 
 @cli.command()
 @log_cli
+def fit_model_v7(data_dir: str = Option(...), params_version: str = Option(...)):
+    dataset = read_parquet(os.path.join(data_dir, "train", "dataset.parquet"))
+    cv = KFold(n_splits=5, shuffle=True, random_state=13)
+    X = dataset.drop(
+        ["variantid1", "variantid2", "target", "category_level_3_id","category_level_4_id","category_level_3_id_grouped"] + [
+            col for col in dataset.columns if 'match_feature_' in col
+        ]
+    ).to_pandas()
+    y = dataset["target"].to_numpy()
+    n = 1
+    for train_index, valid_index in cv.split(X, y):
+        X_train, y_train = X.iloc[train_index].copy(deep=True), y[train_index]
+        X_valid, y_valid = X.iloc[valid_index].copy(deep=True), y[valid_index]
+        model = LGBMClassifier(**lgbm_params[params_version])
+        model.fit(
+            X=X_train,
+            y=y_train,
+            eval_set=[(X_valid, y_valid)],
+            eval_metric=['auc'],
+            early_stopping_rounds=50
+        )
+        write_model(os.path.join(data_dir, f"lgbm_{params_version}_{n}.jbl"), model)
+        n+=1
+
+
+@cli.command()
+@log_cli
 def predict(data_dir: str = Option(...), params_version: str = Option(...)):
     model = read_model(os.path.join(data_dir, f"lgbm_{params_version}.jbl"))
     for fold_type in ["train", "test"]:
@@ -592,6 +668,23 @@ def predict(data_dir: str = Option(...), params_version: str = Option(...)):
         data[["variantid1", "variantid2", "scores"]].to_csv(
             os.path.join(data_dir, fold_type, "prediction.csv"), index=False
         )
+
+
+@cli.command()
+@log_cli
+def predict_v7(data_dir: str = Option(...), params_version: str = Option(...)):
+
+    data = read_parquet(os.path.join(data_dir, "test", "dataset.parquet"))
+    data = data.to_pandas()
+    scores = []
+    for n in range(1, 6):
+        model = read_model(os.path.join(data_dir, f"lgbm_{params_version}_{n}.jbl"))
+        predict = model.predict_proba(data[model.feature_name_])[:, 1]
+        scores.append(predict.reshape(-1, 1))
+    data["scores"] = np.hstack(scores).mean(axis=1)
+    data[["variantid1", "variantid2", "scores"]].to_csv(
+        os.path.join(data_dir, "test", "prediction.csv"), index=False
+    )
 
 
 @cli.command()
