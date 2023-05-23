@@ -5,6 +5,10 @@ from typing import Iterable
 import polars as pl
 
 
+def generate_features(pairs: pl.DataFrame) -> pl.DataFrame:
+    return match_levels(pairs, levels=[2, 3, 4])
+
+
 def match_levels(pairs: pl.DataFrame, levels: list[int] | int) -> pl.DataFrame:
     if not isinstance(levels, Iterable):
         levels = [levels]

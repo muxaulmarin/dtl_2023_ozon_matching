@@ -161,25 +161,10 @@ def list_match(pairs: pl.DataFrame, col_name: str) -> pl.DataFrame:
     )
 
 
-def normalize(text: str) -> str:
-    text = text.lower()
-    chars = []
-    for char in text:
-        if char.isalnum():
-            chars.append(char)
-        else:
-            chars.append(" ")
-    tokens = "".join(chars).split()
-    return "_".join(tokens)
-
-
 if __name__ == "__main__":
-    from ozon_matching.andrey_solution.preprocessing import (
-        preprocess_pairs,
-        preprocess_products,
-    )
+    from ozon_matching.andrey_solution.preprocessing import preprocess_pairs
 
-    products = preprocess_products((pl.read_parquet("data/raw/test_data.parquet")))
+    products = preprocess_pairs((pl.read_parquet("data/raw/test_data.parquet")))
     pairs = preprocess_pairs(pl.read_parquet("data/raw/test_pairs_wo_target.parquet"))
     dataset = pairs.join(
         other=products.rename(
