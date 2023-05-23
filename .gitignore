@@ -164,4 +164,6 @@ tmp_data/
 experiments/
 notebook/
 notebooks/
+submits/
+
 .ruff_cache/
