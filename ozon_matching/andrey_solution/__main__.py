@@ -104,4 +104,37 @@ def generate_features(
             features.write_parquet(features_path)
 
 
+@cli.command()
+def join_features(
+    pairs_path: list[Path] = Option(...), features_path: Path = Option(...)
+) -> pl.DataFrame:
+    for pairs_path_ in pairs_path:
+        logger.info(f"reading pairs from {pairs_path_}...")
+        pairs = pl.read_parquet(pairs_path_)
+        prefix = ""
+        for feature_path in features_path.iterdir():
+            parts = max(
+                [
+                    (p, len(os.path.commonprefix([pairs_path_.name, p.name])))
+                    for p in feature_path.iterdir()
+                ],
+                key=lambda x: x[1],
+            )
+            if parts[1] == 0:
+                raise ValueError(pairs_path_, feature_path)
+            part = parts[0]
+            prefix = part.name.split(".", maxsplit=2)[0]
+            logger.info(f"joining features from {part}...")
+            pairs = pairs.join(
+                other=pl.read_parquet(part),
+                how="left",
+                on=["variantid1", "variantid2"],
+            )
+        dataset_dir = pairs_path_.parent.parent / "dataset"
+        dataset_dir.mkdir(parents=True, exist_ok=True)
+        dataset_path = dataset_dir / (prefix + ".parquet")
+        logger.info(f"saving dataset to {dataset_path}...")
+        pairs.write_parquet(dataset_path)
+
+
 cli()

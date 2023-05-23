@@ -21,10 +21,8 @@ python -m ozon_matching.andrey_solution generate-features \
     --pairs-path data/preprocessed/train_pairs.parquet \
     --products-path data/preprocessed/train_data.parquet
 
-
-python -m ozon_matching.andrey_solution generate-features \
-    --feature-type names \
+# join features
+python -m ozon_matching.andrey_solution join-features \
+    --features-path data/features/ \
     --pairs-path data/preprocessed/test_pairs_wo_target.parquet \
-    --products-path data/preprocessed/test_data.parquet \
-    --pairs-path data/preprocessed/train_pairs.parquet \
-    --products-path data/preprocessed/train_data.parquet
+    --pairs-path data/preprocessed/train_pairs.parquet
