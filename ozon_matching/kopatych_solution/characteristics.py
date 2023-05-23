@@ -7,6 +7,22 @@ import polars as pl
 from Levenshtein import distance as levenshtein_distance
 from loguru import logger
 from tqdm.auto import tqdm
+from typer import Option, Typer
+from ozon_matching.kopatych_solution.utils import (
+    extract_category_levels,
+    get_and_create_dir,
+    log_cli,
+    read_json,
+    read_model,
+    read_parquet,
+    write_json,
+    write_model,
+    write_parquet,
+)
+import os
+
+cli = Typer()
+
 
 
 class CharacteristicsModel:
@@ -195,3 +211,59 @@ class CharacteristicsModel:
             ]
         )
         return match_stats
+
+@cli.command()
+def dummy():
+    pass
+
+
+
+@cli.command()
+@log_cli
+def fit_characteristics_model(data_dir: str = Option(...)):
+    data = read_parquet(
+        os.path.join(data_dir, "union_data.parquet"),
+        columns=["variantid", "characteristic_attributes_mapping"],
+    )
+    pairs = pl.concat(
+        [
+            read_parquet(
+                os.path.join(data_dir, "train", "pairs.parquet"),
+                columns=["variantid1", "variantid2"],
+            ),
+            read_parquet(
+                os.path.join(data_dir, "test", "pairs.parquet"),
+                columns=["variantid1", "variantid2"],
+            ),
+        ]
+    )
+
+    model = CharacteristicsModel()
+    model.fit(data, pairs)
+
+    write_model(
+        os.path.join(data_dir, "characteristics_model.jbl"),
+        model,
+    )
+
+@cli.command()
+@log_cli
+def create_characteristics_features(
+    data_dir: str = Option(...),
+    fold_type: str = Option(...),
+    n_folds: int = Option(...),
+):
+    pairs = read_parquet(os.path.join(data_dir, fold_type, "pairs.parquet"))
+
+    characteristics_model: CharacteristicsModel = read_model(
+        os.path.join(
+            os.path.dirname(data_dir), f"cv_{n_folds + 1}", "characteristics_model.jbl"
+        )
+    )
+    feature = characteristics_model.predict(pairs)
+    write_parquet(
+        feature, os.path.join(data_dir, fold_type, "characteristics_features.parquet")
+    )
+
+if __name__ == "__main__":
+    cli()
