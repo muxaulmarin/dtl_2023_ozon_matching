@@ -1,12 +1,9 @@
 # preprocessing
 python -m ozon_matching.andrey_solution preprocess \
-    --data-type pairs \
-    --input-path data/raw/test_pairs_wo_target.parquet \
-    --input-path data/raw/train_pairs.parquet
-python -m ozon_matching.andrey_solution preprocess \
-    --data-type products \
-    --input-path data/raw/test_data.parquet \
-    --input-path data/raw/train_data.parquet
+    --pairs-path data/raw/test_pairs_wo_target.parquet \
+    --products-path data/raw/test_data.parquet \
+    --pairs-path data/raw/train_pairs.parquet \
+    --products-path data/raw/train_data.parquet
 
 # feature engineering
 python -m ozon_matching.andrey_solution generate-features \
@@ -26,3 +23,14 @@ python -m ozon_matching.andrey_solution join-features \
     --features-path data/features/ \
     --pairs-path data/preprocessed/test_pairs_wo_target.parquet \
     --pairs-path data/preprocessed/train_pairs.parquet
+
+# fit catboost
+python -m ozon_matching.andrey_solution fit-catboost \
+    --train-path data/dataset/train.parquet \
+    --experiment-path experiments/v1 \
+    --folds-path data/cv_pivot.parquet
+
+# prepare submission
+python -m ozon_matching.andrey_solution prepare-submission \
+    --test-path data/dataset/test.parquet \
+    --experiment-path experiments/v1

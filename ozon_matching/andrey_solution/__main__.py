@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from enum import Enum
+from functools import partial
 from pathlib import Path
 
 import polars as pl
@@ -14,7 +15,10 @@ from ozon_matching.andrey_solution.feature_engineering import (
     generate_pictures_features,
     generate_variants_features,
 )
+from ozon_matching.andrey_solution.modeling import CatBoostCV, kfold_split, manual_split
+from ozon_matching.andrey_solution.modeling.config import v1_params
 from ozon_matching.andrey_solution.preprocessing import (
+    add_cat3_grouped,
     preprocess_pairs,
     preprocess_products,
 )
@@ -22,11 +26,6 @@ from ozon_matching.andrey_solution.utils import map_products, normalize
 from typer import Option, Typer
 
 cli = Typer()
-
-
-class DataType(Enum):
-    pairs = "pairs"
-    products = "products"
 
 
 class FeatureType(Enum):
@@ -40,26 +39,30 @@ class FeatureType(Enum):
 
 @cli.command()
 def preprocess(
-    input_path: list[Path] = Option(...), data_type: DataType = Option(...)
+    pairs_path: list[Path] = Option(...),
+    products_path: list[Path] = Option(...),
 ) -> None:
-    if data_type == DataType.pairs:
-        preprocessor = preprocess_pairs
-    elif data_type == DataType.products:
-        preprocessor = preprocess_products
-    else:
-        raise ValueError(data_type)
+    for pairs_path_, products_path_ in zip(pairs_path, products_path):
+        logger.info(f"preprocessing pairs from {pairs_path_}...")
+        pairs = preprocess_pairs(pl.read_parquet(pairs_path_))
+        logger.info(f"preprocessing products from {products_path_}...")
+        products = preprocess_products(pl.read_parquet(products_path_))
 
-    for input_path_ in input_path:
-        output_dir = input_path_.parent.parent / "preprocessed"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / input_path_.name
+        if "target" in pairs.columns:
+            logger.info("adding cat3_grouped to pairs...")
+            pairs = add_cat3_grouped(pairs, products)
 
-        logger.info(f"reading {input_path_}...")
-        df = pl.read_parquet(input_path_)
-        logger.info("preprocessing...")
-        df_prep = preprocessor(df)
-        logger.info(f"saving preprocessed to {output_path}")
-        df_prep.write_parquet(output_path)
+        pairs_output_dir = pairs_path_.parent.parent / "preprocessed"
+        pairs_output_dir.mkdir(parents=True, exist_ok=True)
+        pairs_output_path = pairs_output_dir / pairs_path_.name
+        logger.info(f"saving preprocessed pairs to {pairs_output_path}...")
+        pairs.write_parquet(pairs_output_path)
+
+        products_output_dir = products_path_.parent.parent / "preprocessed"
+        products_output_dir.mkdir(parents=True, exist_ok=True)
+        products_output_path = products_output_dir / products_path_.name
+        logger.info(f"saving preprocessed products to {products_output_path}...")
+        products.write_parquet(products_output_path)
 
 
 @cli.command()
@@ -83,7 +86,7 @@ def generate_features(
                 features_generator = generate_names_features
             elif feature_type_ == FeatureType.categories:
                 features_generator = generate_categories_features
-            elif feature_type == FeatureType.colors:
+            elif feature_type_ == FeatureType.colors:
                 features_generator = generate_colors_features
             elif feature_type_ == FeatureType.pictures:
                 features_generator = generate_pictures_features
@@ -92,7 +95,7 @@ def generate_features(
             else:
                 raise ValueError(feature_type_)
 
-            logger.info("generating features...")
+            logger.info(f"generating features on {feature_type_.value}...")
             features = features_generator(dataset)
             features_dir = pairs_path_.parent.parent / "features" / feature_type_.value
             features_dir.mkdir(parents=True, exist_ok=True)
@@ -135,6 +138,48 @@ def join_features(
         dataset_path = dataset_dir / (prefix + ".parquet")
         logger.info(f"saving dataset to {dataset_path}...")
         pairs.write_parquet(dataset_path)
+
+
+@cli.command()
+def fit_catboost(
+    train_path: Path = Option(...),
+    experiment_path: Path = Option(...),
+    folds_path: Path = None,
+) -> None:
+    logger.info(f"reading train from {train_path}...")
+    train = pl.read_parquet(train_path)
+
+    if folds_path is not None:
+        logger.info(f"reading folds from {folds_path}...")
+        cv_splitter = partial(manual_split, folds=pl.read_parquet(folds_path))
+    else:
+        logger.info("no folds given, falling back to simple kfold...")
+        cv_splitter = kfold_split
+
+    model = CatBoostCV(**v1_params, splitter=cv_splitter)
+    model.fit(train)
+    logger.info(f"top-10 feature importances:\n{model.feature_importances.iloc[:10]}")
+
+    logger.info(f"saving cv models with metrics to {experiment_path}...")
+    model.save(experiment_path)
+
+    oof_path = experiment_path / "oof.parquet"
+    logger.info(f"saving oof predicts to {oof_path}...")
+    model.predict_oof(train).to_parquet(oof_path)
+
+
+@cli.command()
+def prepare_submission(
+    test_path: Path = Option(...), experiment_path: Path = Option(...)
+) -> None:
+    logger.info(f"reading test from {test_path}...")
+    test = pl.read_parquet(test_path)
+    logger.info(f"reading model from {experiment_path}...")
+    model = CatBoostCV.from_snapshot(experiment_path, **v1_params)
+
+    submission_path = experiment_path / "submission.csv"
+    logger.info(f"saving submission to {submission_path}...")
+    model.predict(test).to_csv(submission_path, index=False)
 
 
 cli()
