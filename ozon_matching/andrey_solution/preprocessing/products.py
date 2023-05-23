@@ -6,10 +6,30 @@ from ozon_matching.andrey_solution.utils import compose, normalize
 
 def preprocess(products: pl.DataFrame) -> pl.DataFrame:
     return compose(
+        cast_variant_id,
+        normalize_names,
         extract_categories,
         squeeze_main_pic_embeddings,
         normalize_characteristic_attributes,
     )(products)
+
+
+def normalize_names(products: pl.DataFrame) -> pl.DataFrame:
+    return products.with_columns(
+        [
+            pl.col("name")
+            .apply(lambda name: name.strip().lower().split())
+            .alias("name_tokens"),
+            pl.col("name").apply(normalize).alias("name_norm"),
+        ]
+    ).with_columns(
+        [
+            pl.col("name_tokens").arr.join(" ").alias("name"),
+            pl.col("name_norm")
+            .apply(lambda name: name.split("_"))
+            .alias("name_norm_tokens"),
+        ]
+    )
 
 
 def cast_variant_id(products: pl.DataFrame) -> pl.DataFrame:
@@ -75,24 +95,35 @@ def normalize_characteristic_attributes(products: pl.DataFrame) -> pl.DataFrame:
             on="variantid",
         )
         .with_columns(
-            pl.struct(["characteristics", "attributes"])
-            .apply(
-                lambda char_attrs: reduce(
-                    lambda char_attrs, char_attr_list: char_attrs
-                    + list(
-                        map(
-                            lambda attr: f"{char_attr_list[0]}:{attr}",
-                            char_attr_list[1],
-                        )
-                    ),
-                    zip(char_attrs["characteristics"], char_attrs["attributes"]),
-                    [],
+            [
+                pl.col("attributes")
+                .apply(
+                    lambda attrs: list(
+                        map(lambda attr_list: "+".join(sorted(attr_list)), attrs)
+                    )
+                    if attrs is not None
+                    else attrs
                 )
-                if char_attrs["characteristics"] is not None
-                and char_attrs["attributes"] is not None
-                else char_attrs
-            )
-            .alias("characteristics_attributes")
+                .alias("attributes_joined"),
+                pl.struct(["characteristics", "attributes"])
+                .apply(
+                    lambda char_attrs: reduce(
+                        lambda char_attrs, char_attr_list: char_attrs
+                        + list(
+                            map(
+                                lambda attr: f"{char_attr_list[0]}:{attr}",
+                                char_attr_list[1],
+                            )
+                        ),
+                        zip(char_attrs["characteristics"], char_attrs["attributes"]),
+                        [],
+                    )
+                    if char_attrs["characteristics"] is not None
+                    and char_attrs["attributes"] is not None
+                    else char_attrs
+                )
+                .alias("characteristics_attributes"),
+            ]
         )
         .select(pl.exclude("characteristic_attributes_mapping"))
     )
@@ -103,6 +134,6 @@ if __name__ == "__main__":
     import time
 
     start = time.perf_counter()
-    print(preprocess(test_products))
+    print(normalize_names(test_products))
     stop = time.perf_counter()
     print("took", stop - start, "sec")
