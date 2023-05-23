@@ -172,109 +172,174 @@ def split_data_for_cv(
 
 @cli.command()
 @log_cli
-def create_characteristics_dict(
-    data_dir: str = Option(...), experiment: str = Option(...)
+def split_data_for_cv_v6(
+    data_dir: str = Option(...),
+    n_folds: int = Option(...),
 ):
-    train_data = read_parquet(
-        os.path.join(data_dir, "data", "train", "data.parquet"),
-        columns=["variantid", "characteristic_attributes_mapping", "categories"],
+
+    pairs = read_parquet(
+        os.path.join(data_dir, f"cv_{n_folds + 1}", "train", "pairs.parquet")
     )
-    test_data = read_parquet(
-        os.path.join(data_dir, "data", "test", "data.parquet"),
-        columns=["variantid", "characteristic_attributes_mapping", "categories"],
-    )
-    data = pl.concat([train_data, test_data]).unique(subset=["variantid"])
-    characteristics_dict = _create_characteristics_dict(data)
-    write_json(
-        characteristics_dict,
-        os.path.join(data_dir, experiment, "characteristics_dict.json"),
+    pairs = pairs.with_columns([pl.col("target").cast(pl.Int8)])
+    pairs = pairs.with_row_count(name="index")
+
+    data = read_parquet(
+        os.path.join(data_dir, f"cv_{n_folds + 1}", "train", "data.parquet")
     )
 
-    train_pairs = read_parquet(
-        os.path.join(data_dir, "data", "train", "pairs.parquet"),
-        columns=["variantid1", "variantid2"],
+    pairs = pairs.join(
+        data.select(
+            [
+                pl.col("variantid").alias("variantid1"),
+                pl.col("category_level_3_id_grouped"),
+            ]
+        ),
+        on=["variantid1"],
     )
-    test_pairs = read_parquet(
-        os.path.join(data_dir, "data", "test", "pairs.parquet"),
-        columns=["variantid1", "variantid2"],
+    cv_target = (
+        pairs.select(pl.col(["target", "category_level_3_id_grouped"]))
+        .unique()
+        .sort(["category_level_3_id_grouped", "target"])
+        .with_row_count(name="cv_target")
     )
-    pairs = pl.concat([train_pairs, test_pairs]).unique()
-    characteristics_index = {
-        characteristic: i
-        for i, characteristic in enumerate(
-            _create_characteristics_keys(pairs, characteristics_dict)
+    pairs = pairs.join(cv_target, on=["target", "category_level_3_id_grouped"]).drop(
+        ["category_level_3_id_grouped"]
+    )
+    for n, train_pairs, test_pairs in stratified_k_fold(
+        data=pairs, stratify_col="target", k=int(n_folds)
+    ):
+
+        write_parquet(
+            train_pairs.select(pl.col(["variantid1", "variantid2", "target"])),
+            os.path.join(data_dir, f"cv_{n}", "train", "pairs.parquet"),
         )
-    }
-    write_json(
-        characteristics_index,
-        os.path.join(data_dir, experiment, "characteristics_index.json"),
-    )
-
-    data = extract_category_levels(data, [3], "categories")
-    categories = (
-        data.select(pl.col("category_level_3"))
-        .unique()
-        .with_row_count(name="category_level_3_id")
-    )
-    write_parquet(categories, os.path.join(data_dir, experiment, "categories.parquet"))
-
-
-@cli.command()
-@log_cli
-def create_characteristics_dict_v5(data_dir: str = Option(...)):
-    train_data = read_parquet(
-        os.path.join(data_dir, "train", "data.parquet"),
-        columns=["variantid", "characteristic_attributes_mapping", "categories"],
-    )
-    test_data = read_parquet(
-        os.path.join(data_dir, "test", "data.parquet"),
-        columns=["variantid", "characteristic_attributes_mapping", "categories"],
-    )
-    data = pl.concat([train_data, test_data]).unique(subset=["variantid"])
-
-    characteristics_dict = _create_characteristics_dict_v5(data)
-    write_json(
-        characteristics_dict,
-        os.path.join(data_dir, "characteristics_dict.json"),
-    )
-
-    train_pairs = read_parquet(
-        os.path.join(data_dir, "train", "pairs.parquet"),
-        columns=["variantid1", "variantid2"],
-    )
-    test_pairs = read_parquet(
-        os.path.join(data_dir, "test", "pairs.parquet"),
-        columns=["variantid1", "variantid2"],
-    )
-    pairs = pl.concat([train_pairs, test_pairs]).unique()
-    characteristics_index = {
-        characteristic: i
-        for i, characteristic in enumerate(
-            _create_characteristics_keys(pairs, characteristics_dict)
+        write_parquet(
+            test_pairs.select(pl.col(["variantid1", "variantid2"])),
+            os.path.join(data_dir, f"cv_{n}", "test", "pairs.parquet"),
         )
-    }
-    write_json(
-        characteristics_index,
-        os.path.join(data_dir, "characteristics_index.json"),
-    )
 
-    data = extract_category_levels(data, [3, 4], "categories")
-    categories_level_3 = (
-        data.select(pl.col(["category_level_3"]))
-        .unique()
-        .with_row_count(name="category_level_3_id")
-    )
-    categories_level_4 = (
-        data.select(pl.col(["category_level_4"]))
-        .unique()
-        .with_row_count(name="category_level_4_id")
-    )
-    write_parquet(
-        categories_level_3, os.path.join(data_dir, "categories_level_3.parquet")
-    )
-    write_parquet(
-        categories_level_4, os.path.join(data_dir, "categories_level_4.parquet")
-    )
+        train_data = data.filter(
+            pl.col("variantid").is_in(train_pairs["variantid1"])
+            | pl.col("variantid").is_in(train_pairs["variantid2"])
+        )
+        write_parquet(
+            train_data, os.path.join(data_dir, f"cv_{n}", "train", "data.parquet")
+        )
+
+        test_data = data.filter(
+            pl.col("variantid").is_in(test_pairs["variantid1"])
+            | pl.col("variantid").is_in(test_pairs["variantid2"])
+        )
+        write_parquet(
+            test_data, os.path.join(data_dir, f"cv_{n}", "test", "data.parquet")
+        )
+
+
+# @cli.command()
+# @log_cli
+# def create_characteristics_dict(
+#     data_dir: str = Option(...), experiment: str = Option(...)
+# ):
+#     train_data = read_parquet(
+#         os.path.join(data_dir, "data", "train", "data.parquet"),
+#         columns=["variantid", "characteristic_attributes_mapping", "categories"],
+#     )
+#     test_data = read_parquet(
+#         os.path.join(data_dir, "data", "test", "data.parquet"),
+#         columns=["variantid", "characteristic_attributes_mapping", "categories"],
+#     )
+#     data = pl.concat([train_data, test_data]).unique(subset=["variantid"])
+#     characteristics_dict = _create_characteristics_dict(data)
+#     write_json(
+#         characteristics_dict,
+#         os.path.join(data_dir, experiment, "characteristics_dict.json"),
+#     )
+
+#     train_pairs = read_parquet(
+#         os.path.join(data_dir, "data", "train", "pairs.parquet"),
+#         columns=["variantid1", "variantid2"],
+#     )
+#     test_pairs = read_parquet(
+#         os.path.join(data_dir, "data", "test", "pairs.parquet"),
+#         columns=["variantid1", "variantid2"],
+#     )
+#     pairs = pl.concat([train_pairs, test_pairs]).unique()
+#     characteristics_index = {
+#         characteristic: i
+#         for i, characteristic in enumerate(
+#             _create_characteristics_keys(pairs, characteristics_dict)
+#         )
+#     }
+#     write_json(
+#         characteristics_index,
+#         os.path.join(data_dir, experiment, "characteristics_index.json"),
+#     )
+
+#     data = extract_category_levels(data, [3], "categories")
+#     categories = (
+#         data.select(pl.col("category_level_3"))
+#         .unique()
+#         .with_row_count(name="category_level_3_id")
+#     )
+#     write_parquet(categories, os.path.join(data_dir, experiment, "categories.parquet"))
+
+
+# @cli.command()
+# @log_cli
+# def create_characteristics_dict_v5(data_dir: str = Option(...)):
+#     train_data = read_parquet(
+#         os.path.join(data_dir, "train", "data.parquet"),
+#         columns=["variantid", "characteristic_attributes_mapping", "categories"],
+#     )
+#     test_data = read_parquet(
+#         os.path.join(data_dir, "test", "data.parquet"),
+#         columns=["variantid", "characteristic_attributes_mapping", "categories"],
+#     )
+#     data = pl.concat([train_data, test_data]).unique(subset=["variantid"])
+
+#     characteristics_dict = _create_characteristics_dict_v5(data)
+#     write_json(
+#         characteristics_dict,
+#         os.path.join(data_dir, "characteristics_dict.json"),
+#     )
+
+#     train_pairs = read_parquet(
+#         os.path.join(data_dir, "train", "pairs.parquet"),
+#         columns=["variantid1", "variantid2"],
+#     )
+#     test_pairs = read_parquet(
+#         os.path.join(data_dir, "test", "pairs.parquet"),
+#         columns=["variantid1", "variantid2"],
+#     )
+#     pairs = pl.concat([train_pairs, test_pairs]).unique()
+#     characteristics_index = {
+#         characteristic: i
+#         for i, characteristic in enumerate(
+#             _create_characteristics_keys(pairs, characteristics_dict)
+#         )
+#     }
+#     write_json(
+#         characteristics_index,
+#         os.path.join(data_dir, "characteristics_index.json"),
+#     )
+
+#     data = extract_category_levels(data, [3, 4], "categories")
+#     categories_level_3 = (
+#         data.select(pl.col(["category_level_3"]))
+#         .unique()
+#         .with_row_count(name="category_level_3_id")
+#     )
+#     categories_level_4 = (
+#         data.select(pl.col(["category_level_4"]))
+#         .unique()
+#         .with_row_count(name="category_level_4_id")
+#     )
+#     write_parquet(
+#         categories_level_3, os.path.join(data_dir, "categories_level_3.parquet")
+#     )
+#     write_parquet(
+#         categories_level_4, os.path.join(data_dir, "categories_level_4.parquet")
+#     )
 
 
 @cli.command()
@@ -390,19 +455,19 @@ def create_characteristics_features(
     )
 
 
-@cli.command()
-@log_cli
-def create_characteristics_features_v5(
-    data_dir: str = Option(...), fold_type: str = Option(...)
-):
-    pairs = read_parquet(os.path.join(data_dir, fold_type, "pairs.parquet"))
-    characteristics_dict = read_json(
-        os.path.join(os.path.dirname(data_dir), "characteristics_dict.json")
-    )
-    feature = create_characteristic_features_v5(pairs, characteristics_dict)
+# @cli.command()
+# @log_cli
+# def create_characteristics_features_v5(
+#     data_dir: str = Option(...), fold_type: str = Option(...)
+# ):
+#     pairs = read_parquet(os.path.join(data_dir, fold_type, "pairs.parquet"))
+#     characteristics_dict = read_json(
+#         os.path.join(os.path.dirname(data_dir), "characteristics_dict.json")
+#     )
+#     feature = create_characteristic_features_v5(pairs, characteristics_dict)
 
-    fodler = get_and_create_dir(os.path.join(data_dir, fold_type, "features"))
-    write_parquet(feature, os.path.join(fodler, "characteristics_features_v5.parquet"))
+#     fodler = get_and_create_dir(os.path.join(data_dir, fold_type, "features"))
+#     write_parquet(feature, os.path.join(fodler, "characteristics_features_v5.parquet"))
 
 
 @cli.command()
@@ -611,7 +676,7 @@ def oof_predict(
     predict_cols = []
     for fold in range(1, n_folds + 1):
         model: LGBMClassifier = read_model(
-            os.path.join(data_dir, f"cv_{fold}", "lgbm_v5.jbl")
+            os.path.join(data_dir, f"cv_{fold}", f"lgbm_{experiment_version}.jbl")
         )
         predict_col = f"predict_fold_{fold}"
         dataset[predict_col] = model.predict_proba(dataset[model.feature_name_])[:, 1]
