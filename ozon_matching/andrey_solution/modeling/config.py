@@ -1,7 +1,7 @@
 v1_params = {
     "model_params": {
-        "iterations": 10_000,
-        "early_stopping_rounds": 100,
+        "iterations": 100_000,
+        "early_stopping_rounds": 1_000,
         "random_seed": 777,
     },
     "pool_params": {
