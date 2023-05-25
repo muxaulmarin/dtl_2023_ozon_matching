@@ -29,13 +29,18 @@ class CatBoostCV:
         self.splitter = splitter
 
     def fit(
-        self, train: pl.DataFrame, verbose: Optional[int] = None
+        self,
+        train: pl.DataFrame,
+        chains: Optional[pl.DataFrame] = None,
+        verbose: Optional[int] = None,
     ) -> list[dict[str, float]]:
         self.models_ = []
         self.metrics_ = []
 
         for fold, (train_idx, val_idx) in enumerate(self.splitter(train)):
             train_fold, val_fold = train[train_idx], train[val_idx]
+            if chains is not None:
+                train_fold = pl.concat([train_fold, chains])
 
             train_fold_pool, val_fold_pool = self.to_pool(train_fold), self.to_pool(
                 val_fold
