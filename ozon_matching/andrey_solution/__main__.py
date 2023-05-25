@@ -4,9 +4,11 @@ import os
 from enum import Enum
 from functools import partial
 from pathlib import Path
+from typing import Optional
 
 import polars as pl
 from loguru import logger
+from ozon_matching.andrey_solution.chains import enrich_by_chains
 from ozon_matching.andrey_solution.feature_engineering import (
     generate_categories_features,
     generate_characteristics_features,
@@ -70,6 +72,7 @@ def generate_features(
     pairs_path: list[Path] = Option(...),
     products_path: list[Path] = Option(...),
     feature_type: list[FeatureType] = Option(...),
+    output_file: Optional[Path] = None,
 ) -> None:
     for pairs_path_, products_path_ in zip(pairs_path, products_path):
         logger.info(f"reading pairs from {pairs_path_}...")
@@ -99,17 +102,23 @@ def generate_features(
             features = features_generator(dataset)
             features_dir = pairs_path_.parent.parent / "features" / feature_type_.value
             features_dir.mkdir(parents=True, exist_ok=True)
-            features_path = features_dir / (
-                normalize(os.path.commonprefix([pairs_path_.name, products_path_.name]))
-                + ".parquet"
-            )
+            if output_file is None:
+                features_path = features_dir / (
+                    normalize(os.path.commonprefix([pairs_path_.name, products_path_.name]))
+                    + ".parquet"
+                )
+            else:
+                features_path = features_dir / output_file
+            
             logger.info(f"saving features to {features_path}...")
             features.write_parquet(features_path)
 
 
 @cli.command()
 def join_features(
-    pairs_path: list[Path] = Option(...), features_path: Path = Option(...)
+    pairs_path: list[Path] = Option(...),
+    features_path: Path = Option(...),
+    output_file: Optional[Path] = None,
 ) -> pl.DataFrame:
     for pairs_path_ in pairs_path:
         logger.info(f"reading pairs from {pairs_path_}...")
@@ -135,7 +144,10 @@ def join_features(
             )
         dataset_dir = pairs_path_.parent.parent / "dataset"
         dataset_dir.mkdir(parents=True, exist_ok=True)
-        dataset_path = dataset_dir / (prefix + ".parquet")
+        if output_file is None:
+            dataset_path = dataset_dir / (prefix + ".parquet")
+        else:
+            dataset_path = dataset_dir / output_file
         logger.info(f"saving dataset to {dataset_path}...")
         pairs.write_parquet(dataset_path)
 
@@ -145,6 +157,7 @@ def fit_catboost(
     train_path: Path = Option(...),
     experiment_path: Path = Option(...),
     folds_path: Path = None,
+    chains_path: Path = None,
 ) -> None:
     logger.info(f"reading train from {train_path}...")
     train = pl.read_parquet(train_path)
@@ -156,8 +169,13 @@ def fit_catboost(
         logger.info("no folds given, falling back to simple kfold...")
         cv_splitter = kfold_split
 
+    chains = None
+    if chains_path is not None:
+        logger.info(f"reading chains from {chains_path}...")
+        chains = pl.read_parquet(chains_path)
+
     model = CatBoostCV(**v1_params, splitter=cv_splitter)
-    model.fit(train)
+    model.fit(train, chains=chains)
     logger.info(f"top-10 feature importances:\n{model.feature_importances.iloc[:10]}")
 
     logger.info(f"saving cv models with metrics to {experiment_path}...")
@@ -180,6 +198,32 @@ def prepare_submission(
     submission_path = experiment_path / "submission.csv"
     logger.info(f"saving submission to {submission_path}...")
     model.predict(test).to_csv(submission_path, index=False)
+
+
+@cli.command()
+def extract_chains(
+    pairs_path: Path = Option(...),
+    products_path: Path = Option(...),
+    max_nodes: int = 120,
+    cutoff: Optional[int] = None,
+) -> None:
+    logger.info(f"reading pairs from {pairs_path}...")
+    pairs = pl.read_parquet(pairs_path)
+    logger.info(f"reading products from {pairs_path}...")
+    products = pl.read_parquet(products_path)
+    logger.info("generating chains...")
+    chains = enrich_by_chains(pairs, max_nodes=max_nodes, cutoff=cutoff)
+
+    logger.info("preprocessing chains pairs...")
+    chains = preprocess_pairs(chains)
+    logger.info("adding cat3_grouped to pairs...")
+    chains = add_cat3_grouped(chains, products)
+
+    chains_dir = pairs_path.parent.parent / "preprocessed"
+    chains_dir.mkdir(parents=True, exist_ok=True)
+    chains_path = chains_dir / "train_chains_pairs.parquet"
+    logger.info(f"saving extracted chains to {chains_path}...")
+    chains.write_parquet(chains_path)
 
 
 cli()

@@ -44,7 +44,7 @@ def enrich_by_chains(
             enriched.append(pl.concat([known_pairs, enriched_pairs]))
         else:
             enriched.append(known_pairs)
-    return pl.concat(enriched)
+    return pl.concat(enriched).filter(pl.col("enriched")).select(pl.exclude("enriched"))
 
 
 def _build_chains_graph(pairs: pl.DataFrame) -> nx.Graph:
