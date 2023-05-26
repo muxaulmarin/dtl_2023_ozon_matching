@@ -1,4 +1,4 @@
-v1_params = {
+catboost_params = {
     "model_params": {
         "iterations": 10_000,
         "early_stopping_rounds": 100,
