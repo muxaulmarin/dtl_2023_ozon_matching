@@ -19,7 +19,7 @@ from ozon_matching.andrey_solution.feature_engineering import (
     generate_pictures_features,
     generate_variants_features,
 )
-from ozon_matching.andrey_solution.modeling import CatBoostCV, kfold_split, manual_split, convert_to_vw, calc_metrics
+from ozon_matching.andrey_solution.modeling import CatBoostCV, kfold_split, manual_split
 from ozon_matching.andrey_solution.modeling.config import catboost_params
 from ozon_matching.andrey_solution.preprocessing import (
     add_cat3_grouped,
@@ -228,79 +228,5 @@ def extract_chains(
     logger.info(f"saving extracted chains to {chains_path}...")
     chains.write_parquet(chains_path)
 
-
-@cli.command()
-def prepare_vw_dataset(
-    pairs_path: Path = Option(...), 
-    products_path: Path = Option(...),
-    output_file: str = Option(...),
-    folds_path: Path = None,
-) -> None:
-    logger.info(f"reading pairs from {pairs_path}...")
-    pairs = pl.read_parquet(pairs_path)
-    logger.info(f"reading products from {products_path}...")
-    products = pl.read_parquet(products_path)
-    logger.info("mapping products to pairs...")
-    dataset = map_products(pairs, products)
-
-    vw_dataset_dir = pairs_path.parent.parent / "vw-dataset"
-    vw_dataset_dir.mkdir(parents=True, exist_ok=True)
-    vw_dataset_path = vw_dataset_dir / output_file
-    if folds_path is None:
-        logger.info(f"saving dataset in vw format to {vw_dataset_path}...")
-        with open(vw_dataset_path, "w") as f:
-            for vw_row in tqdm(convert_to_vw(dataset), total=len(dataset)):
-                print(vw_row, file=f)
-    else:
-        vw_dataset_path.mkdir(parents=True, exist_ok=True)
-        folds = pl.read_parquet(folds_path)
-
-        for i, (train_idx, val_idx) in enumerate(manual_split(dataset, folds)):
-            vw_dataset_fold_dir = vw_dataset_path / f"fold-{i}"
-            vw_dataset_fold_dir.mkdir(parents=True, exist_ok=True)
-
-            vw_dataset_fold_train_path = vw_dataset_fold_dir / "train.vw"
-            logger.info(f"saving train fold in vw format to {vw_dataset_fold_train_path}...")
-            with open(vw_dataset_fold_train_path, "w") as f:
-                for vw_row in tqdm(convert_to_vw(dataset[train_idx]), total=len(train_idx)):
-                    print(vw_row, file=f)
-            
-            vw_dataset_fold_val_path = vw_dataset_fold_dir / "val.vw"
-            logger.info(f"saving val fold in vw format to {vw_dataset_fold_val_path}...")
-            with open(vw_dataset_fold_val_path, "w") as f:
-                for vw_row in tqdm(convert_to_vw(dataset[val_idx]), total=len(val_idx)):
-                    print(vw_row, file=f)
-
-
-@cli.command()
-def prepare_submission_vw(
-    pairs_path: Path = Option(...), predictions_path: Path = Option(...)
-) -> None:
-    logger.info(f"reading pairs from {pairs_path}...")
-    pairs = pd.read_parquet(pairs_path)
-    logger.info(f"reading predictions from {predictions_path}...")
-    pairs["target"] = np.loadtxt(predictions_path)
-
-    submission_path = predictions_path.parent / "submission.csv"
-    logger.info(f"saving submission to {submission_path}...")
-    pairs.loc[:, ["variantid1", "variantid2", "target"]].to_csv(submission_path, index=False)
-
-
-@cli.command()
-def calc_metric_train_vw(
-    pairs_path: list[Path] = Option(...), predictions_path: Path = Option(...)
-) -> None:
-    logger.info(f"reading pairs from {pairs_path}...")
-    pairs = pd.concat([pd.read_parquet(pp) for pp in pairs_path]).reset_index(drop=True)
-    logger.info(f"reading predictions from {predictions_path}...")
-    pairs["target_pred"] = np.loadtxt(predictions_path)
-
-    logger.info("calculating metrics...")
-    metrics = calc_metrics(
-        y_true=pairs["target"],
-        y_pred=pairs["target_pred"],
-        categories=pairs["cat3_grouped"],
-    )
-    logger.info(f"{metrics = }")
 
 cli()
