@@ -22,6 +22,11 @@ typer-cli = "^0.0.13"
 loguru = "^0.7.0"
 python-levenshtein = "^0.21.0"
 optuna = "^3.1.1"
+category-encoders = "^2.6.1"
+nltk = "^3.8.1"
+pybind11 = "^2.10.4"
+fasttext-wheel = "^0.9.2"
+cdifflib = "^1.2.6"
 networkx = "^3.1"
 
 
