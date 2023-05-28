@@ -1,7 +1,7 @@
 catboost_params = {
     "model_params": {
-        "iterations": 1_000,
-        "early_stopping_rounds": 10,
+        "iterations": 10_000,
+        "early_stopping_rounds": 100,
         "random_seed": 777,
     },
     "pool_params": {
