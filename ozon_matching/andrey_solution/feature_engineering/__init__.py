@@ -13,11 +13,17 @@ from ozon_matching.andrey_solution.feature_engineering.names import (
 from ozon_matching.andrey_solution.feature_engineering.pictures import (
     generate_features as generate_pictures_features,
 )
+from ozon_matching.andrey_solution.feature_engineering.tfidf import (
+    calc_similarity,
+    fit_tfidf,
+)
 from ozon_matching.andrey_solution.feature_engineering.variants import (
     generate_features as generate_variants_features,
 )
 
 __all__ = [
+    "calc_similarity",
+    "fit_tfidf",
     "generate_categories_features",
     "generate_characteristics_features",
     "generate_colors_features",
