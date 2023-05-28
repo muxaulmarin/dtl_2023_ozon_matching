@@ -40,6 +40,6 @@ repos:
         pass_filenames: false
       - id: mypy
         name: mypy
-        entry: mypy --install-types --non-interactive .
+        entry: mypy --install-types --non-interactive --exclude .
         language: system
         pass_filenames: false
