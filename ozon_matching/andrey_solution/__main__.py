@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Optional
 
 import polars as pl
-import pandas as pd
-import numpy as np
 from loguru import logger
 from ozon_matching.andrey_solution.chains import enrich_by_chains
 from ozon_matching.andrey_solution.feature_engineering import (
@@ -28,7 +26,6 @@ from ozon_matching.andrey_solution.preprocessing import (
 )
 from ozon_matching.andrey_solution.utils import map_products, normalize
 from typer import Option, Typer
-from tqdm import tqdm
 
 cli = Typer()
 
@@ -107,12 +104,14 @@ def generate_features(
             features_dir.mkdir(parents=True, exist_ok=True)
             if output_file is None:
                 features_path = features_dir / (
-                    normalize(os.path.commonprefix([pairs_path_.name, products_path_.name]))
+                    normalize(
+                        os.path.commonprefix([pairs_path_.name, products_path_.name])
+                    )
                     + ".parquet"
                 )
             else:
                 features_path = features_dir / output_file
-            
+
             logger.info(f"saving features to {features_path}...")
             features.write_parquet(features_path)
 

@@ -48,7 +48,7 @@ def pr_auc_macro_t(
     df: pd.DataFrame,
     prec_level: float = 0.75,
     cat_column: str = "cat3_grouped",
-    t: int = 1000
+    t: int = 1000,
 ) -> float:
 
     y_true = df["target"].values
@@ -57,7 +57,7 @@ def pr_auc_macro_t(
 
     unique_cats, counts = np.unique(categories, return_counts=True)
     cat_counts = {k: v for k, v in zip(unique_cats, counts)}
-    rest_cat_id = categories.max() + 1
+    rest_cat_id = "rest"
 
     for i in range(categories.size):
         if cat_counts[categories[i]] <= t:

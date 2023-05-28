@@ -21,12 +21,16 @@ def enrich_by_chains(
     Args:
         pairs (pl.DataFrame): Table with columns target, variantid1, variantid2
         max_nodes (int): Maximum number of nodes in a chain to create samples for it.
-            Less `max_nodes` means less execution time and less additional samples. Defaults to 120.
-        cutoff (int, optional): Maximum length of a path to stop search. None means any length is allowed.
-            Less `cutoff` means less execution time and less additional samples. Defaults to None.
+            Less `max_nodes` means less execution time
+            and less additional samples. Defaults to 120.
+        cutoff (int, optional): Maximum length of a path to stop search.
+            None means any length is allowed.
+            Less `cutoff` means less execution time and
+            less additional samples. Defaults to None.
 
     Returns:
-        pl.DataFrame: Table with columns from `pairs` and additional columns chain_id and enriched
+        pl.DataFrame: Table with columns from `pairs`
+        and additional columns chain_id and enriched
     """
 
     pairs = map_to_chains_id(pairs)
