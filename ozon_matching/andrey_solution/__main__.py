@@ -125,15 +125,21 @@ def join_features(
     pairs_path: list[Path] = Option(...),
     output_file: list[str] = Option(...),
     features_path: Path = Option(...),
+    ignore: list[str] = None,
 ) -> pl.DataFrame:
     for pairs_path_, output_file_ in zip(pairs_path, output_file):
         logger.info(f"reading pairs from {pairs_path_}...")
         pairs = pl.read_parquet(pairs_path_)
         for feature_path in features_path.iterdir():
+            if ignore and feature_path.name in ignore:
+                logger.warning(f"ignore {feature_path}")
+                continue
             part = feature_path / output_file_
             logger.info(f"joining features from {part}...")
             pairs = pairs.join(
-                other=pl.read_parquet(part),
+                other=pl.read_parquet(part)
+                .with_columns([pl.col(["variantid1", "variantid2"]).cast(pl.UInt32)])
+                .select(pl.exclude("__index_level_0__")),
                 how="left",
                 on=["variantid1", "variantid2"],
             )
