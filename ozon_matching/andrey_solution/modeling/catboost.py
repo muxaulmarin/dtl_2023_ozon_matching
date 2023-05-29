@@ -120,6 +120,8 @@ class CatBoostCV:
             model.save_model(str(path / f"fold-{fold}.cbm"))
         with open(path / "metrics.json", "w") as f:
             json.dump(self.metrics_, f)
+        with open(path / "feature-importances.json", "w") as f:
+            json.dump(self.feature_importances.to_dict(), f)
 
     @classmethod
     def from_snapshot(cls, path: str | Path, **kwargs) -> CatBoostCV:
