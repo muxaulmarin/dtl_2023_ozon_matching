@@ -110,9 +110,9 @@ for t in tqdm.tqdm(range(len(dataset))):
 evaldf = pd.DataFrame(evaldf)
 evaldf.columns = ["variantid1","variantid2","colorbert"]
 
-nn_features = pd.read_parquet('nn/test.parquet')
+nn_features = pd.read_parquet('data/preprocessed/nn/test.parquet')
 nn_features = nn_features.merge(evaldf, on=["variantid1","variantid2"], how='left')
-nn_features.to_parquet('nn/test.parquet')
+nn_features.to_parquet('data/preprocessed/nn/test.parquet')
 
 
 # In[14]:
