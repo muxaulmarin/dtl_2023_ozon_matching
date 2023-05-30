@@ -11,6 +11,7 @@ catboost_params = {
             "category_level_4",
             "pic_embeddings_resnet_v1_fillness",
             "color_parsed_fillness",
+            "brand_cat_feature",
         ]
     },
 }
