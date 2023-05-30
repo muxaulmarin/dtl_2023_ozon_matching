@@ -31,11 +31,13 @@ do
     python $workflow/features.py create-brand-features --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
     python $workflow/features.py create-compatible-devices-feature --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
     python $workflow/features.py create-color-feature --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
+    python $workflow/features.py create-watch-feature --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
+    python $workflow/features.py create-size-feature --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
 done
 
 
 mkdir data/features
-for feature_name in brands characteristics-extra colors-extra compatible-devices titles
+for feature_name in brands characteristics-extra colors-extra compatible-devices titles watch size
 do
     mkdir data/features/$feature_name
 done
@@ -47,6 +49,8 @@ do
     cp $experiment_folder/$experiment/$commod_folder/$fold/color_feature.parquet data/features/colors-extra/$fold.parquet
     cp $experiment_folder/$experiment/$commod_folder/$fold/compatible_devices_feature.parquet data/features/compatible-devices/$fold.parquet
     cp $experiment_folder/$experiment/$commod_folder/$fold/titles_features.parquet data/features/titles/$fold.parquet
+    cp $experiment_folder/$experiment/$commod_folder/$fold/watch_feature.parquet data/features/watch/$fold.parquet
+    cp $experiment_folder/$experiment/$commod_folder/$fold/size_feature.parquet data/features/size/$fold.parquet
 done
 
 # rm -rf $experiment_folder
