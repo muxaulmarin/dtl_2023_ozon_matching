@@ -34,12 +34,12 @@ workflow=ozon_matching/kopatych_solution/workflows/$experiment
 
 # for fold in train test
 # do
-#     python $workflow/title.py create-titles-features --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
-#     python $workflow/similarity.py create-similarity-features --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
-#     python $workflow/characteristics.py create-characteristics-features --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
+    # python $workflow/title.py create-titles-features --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
+    # python $workflow/similarity.py create-similarity-features --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
+    # python $workflow/characteristics.py create-characteristics-features --data-dir $experiment_folder/$experiment/$commod_folder --fold $fold
 # done
 
-# python $workflow/cv.py split-data-for-cv --data-dir $experiment_folder/$experiment --n-folds $n_folds --chain-pairs data/train_chain_pairs.parquet
+#python $workflow/cv.py split-data-for-cv --data-dir $experiment_folder/$experiment --n-folds $n_folds
 
 # for fold in $(seq 1 $n_folds)
 # do
@@ -53,6 +53,7 @@ workflow=ozon_matching/kopatych_solution/workflows/$experiment
 
 # python $workflow/classifier.py cv-scores --data-dir $experiment_folder/$experiment --n-folds $n_folds
 
-# python $workflow/data.py prepare-data-submit --data-dir $experiment_folder/$experiment/$commod_folder/test
+python $workflow/data.py prepare-data-submit --data-dir $experiment_folder/$experiment/$commod_folder/test
 
 python $workflow/classifier.py oof-predict --data-dir $experiment_folder/$experiment/$commod_folder --n-folds $n_folds
+python $workflow/data.py oof-predict --data-dir $experiment_folder/$experiment --n-folds $n_folds

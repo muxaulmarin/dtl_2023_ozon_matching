@@ -85,9 +85,14 @@ class TitleModel:
     def predict(self, data: pl.DataFrame) -> pl.DataFrame:
         rows = data.select(pl.col(["variantid1", "variantid2"])).iter_rows()
         features = []
-        for pair in tqdm(rows, total=data.shape[0]):
-            vector = self._predict(*pair)
+        n_miss = 0
+        for variantid1, variantid2 in tqdm(rows, total=data.shape[0]):
+            if variantid1 not in self.titles or variantid2 not in self.titles:
+                n_miss += 1
+                continue
+            vector = self._predict(variantid1, variantid2)
             features.append(vector)
+        logger.info(f"N MISS = {n_miss}")
         features = pl.DataFrame(
             features,
             orient="row",
@@ -116,6 +121,7 @@ class TitleModel:
         return features
 
     def _predict(self, variantid1: int, variantid2: int) -> List[Union[int, float]]:
+        
         title1 = self.titles[variantid1]
         title2 = self.titles[variantid2]
         sim = (
@@ -178,7 +184,7 @@ def fit_titles_model(data_dir: str = Option(...)):
 @log_cli
 def create_titles_features(
     data_dir: str = Option(...),
-    fold: str = Option(...)
+    fold: str = Option(...),
 ):
     pairs = read_parquet(os.path.join(data_dir, fold, "pairs.parquet"))
 
