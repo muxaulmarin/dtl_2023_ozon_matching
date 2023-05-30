@@ -6,10 +6,14 @@ from functools import partial
 from pathlib import Path
 from typing import Optional
 
+import joblib as jbl
 import polars as pl
+import scipy.sparse as sp
 from loguru import logger
 from ozon_matching.andrey_solution.chains import enrich_by_chains
 from ozon_matching.andrey_solution.feature_engineering import (
+    calc_similarity,
+    fit_tfidf,
     generate_categories_features,
     generate_characteristics_features,
     generate_colors_features,
@@ -119,37 +123,29 @@ def generate_features(
 @cli.command()
 def join_features(
     pairs_path: list[Path] = Option(...),
+    output_file: list[str] = Option(...),
     features_path: Path = Option(...),
-    output_file: Optional[Path] = None,
+    ignore: list[str] = None,
 ) -> pl.DataFrame:
-    for pairs_path_ in pairs_path:
+    for pairs_path_, output_file_ in zip(pairs_path, output_file):
         logger.info(f"reading pairs from {pairs_path_}...")
         pairs = pl.read_parquet(pairs_path_)
-        prefix = ""
         for feature_path in features_path.iterdir():
-            parts = max(
-                [
-                    (p, len(os.path.commonprefix([pairs_path_.name, p.name])))
-                    for p in feature_path.iterdir()
-                ],
-                key=lambda x: x[1],
-            )
-            if parts[1] == 0:
-                raise ValueError(pairs_path_, feature_path)
-            part = parts[0]
-            prefix = part.name.split(".", maxsplit=2)[0]
+            if ignore and feature_path.name in ignore:
+                logger.warning(f"ignore {feature_path}")
+                continue
+            part = feature_path / output_file_
             logger.info(f"joining features from {part}...")
             pairs = pairs.join(
-                other=pl.read_parquet(part),
+                other=pl.read_parquet(part)
+                .with_columns([pl.col(["variantid1", "variantid2"]).cast(pl.UInt32)])
+                .select(pl.exclude(["__index_level_0__", "target"])),
                 how="left",
                 on=["variantid1", "variantid2"],
             )
         dataset_dir = pairs_path_.parent.parent / "dataset"
         dataset_dir.mkdir(parents=True, exist_ok=True)
-        if output_file is None:
-            dataset_path = dataset_dir / (prefix + ".parquet")
-        else:
-            dataset_path = dataset_dir / output_file
+        dataset_path = dataset_dir / output_file_
         logger.info(f"saving dataset to {dataset_path}...")
         pairs.write_parquet(dataset_path)
 
@@ -226,6 +222,61 @@ def extract_chains(
     chains_path = chains_dir / "train_chains_pairs.parquet"
     logger.info(f"saving extracted chains to {chains_path}...")
     chains.write_parquet(chains_path)
+
+
+@cli.command()
+def create_tfidf_matrix(
+    train_products_path: Path = Option(...),
+    test_products_path: Path = Option(...),
+    col_name: list[str] = Option(...),
+) -> None:
+    logger.info(f"reading products train from {train_products_path}...")
+    products_train = pl.read_parquet(train_products_path)
+    logger.info(f"reading products test from {test_products_path}...")
+    products_test = pl.read_parquet(test_products_path)
+
+    for col_name_ in col_name:
+        logger.info(f"fitting tfidf for {col_name_}...")
+        tfidf, variant_id_to_index, value_to_index = fit_tfidf(
+            products_train, products_test, col_name=col_name_
+        )
+
+        tfidf_dir = train_products_path.parent.parent / "tfidf" / col_name_
+        tfidf_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"saving tfidf matrix to {tfidf_dir}...")
+        sp.save_npz(str(tfidf_dir / "matrix.npz"), tfidf)
+        jbl.dump(variant_id_to_index, tfidf_dir / "variant_id_to_index.jbl")
+        jbl.dump(value_to_index, tfidf_dir / "value_to_index.jbl")
+
+
+@cli.command()
+def create_tfidf_similarity_features(
+    pairs_path: list[Path] = Option(...),
+    output_file: list[Path] = Option(...),
+    col_name: list[str] = Option(...),
+) -> None:
+    for col_name_ in col_name:
+        tfidf_dir = pairs_path[0].parent.parent / "tfidf" / col_name_
+        logger.info(f"loading tfidf for {col_name_} from {tfidf_dir}...")
+        tfidf = sp.load_npz(str(tfidf_dir / "matrix.npz"))
+        variant_id_to_index = jbl.load(tfidf_dir / "variant_id_to_index.jbl")
+
+        for pairs_path_, output_file_ in zip(pairs_path, output_file):
+            logger.info(f"reading pairs from {pairs_path_}...")
+            pairs = pl.read_parquet(pairs_path_)
+
+            logger.info(f"calculating similarity for {col_name_}...")
+            similarity = calc_similarity(
+                pairs=pairs,
+                col_name=col_name_,
+                tfidf_matrix=tfidf,
+                variant_id_to_index=variant_id_to_index,
+            )
+            similarity_dir = tfidf_dir.parent.parent / "features" / f"tfidf-{col_name_}"
+            similarity_dir.mkdir(parents=True, exist_ok=True)
+            similarity_path = similarity_dir / output_file_
+            logger.info(f"saving similarity for {col_name_} to {similarity_path}...")
+            similarity.write_parquet(similarity_path)
 
 
 cli()

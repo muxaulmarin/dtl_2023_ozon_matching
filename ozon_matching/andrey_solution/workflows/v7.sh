@@ -71,11 +71,10 @@ python -m ozon_matching.andrey_solution join-features \
 # fit catboost
 python -m ozon_matching.andrey_solution fit-catboost \
     --train-path data/dataset/train.parquet \
-    --experiment-path experiments/v4 \
-    --folds-path data/cv_pivot.parquet \
-    --chains-path data/dataset/train_chains.parquet
+    --experiment-path experiments/v7 \
+    --folds-path data/cv_pivot.parquet
 
 # prepare submission
 python -m ozon_matching.andrey_solution prepare-submission \
     --test-path data/dataset/test.parquet \
-    --experiment-path experiments/v4
+    --experiment-path experiments/v7

@@ -64,18 +64,15 @@ python -m ozon_matching.andrey_solution join-features \
     --pairs-path data/preprocessed/test_pairs_wo_target.parquet \
     --output-file test.parquet \
     --pairs-path data/preprocessed/train_pairs.parquet \
-    --output-file train.parquet \
-    --pairs-path data/preprocessed/train_chains_pairs.parquet \
-    --output-file train_chains.parquet
+    --output-file train.parquet
 
 # fit catboost
 python -m ozon_matching.andrey_solution fit-catboost \
     --train-path data/dataset/train.parquet \
-    --experiment-path experiments/v4 \
-    --folds-path data/cv_pivot.parquet \
-    --chains-path data/dataset/train_chains.parquet
+    --experiment-path experiments/v8 \
+    --folds-path data/cv_pivot.parquet
 
 # prepare submission
 python -m ozon_matching.andrey_solution prepare-submission \
     --test-path data/dataset/test.parquet \
-    --experiment-path experiments/v4
+    --experiment-path experiments/v8
