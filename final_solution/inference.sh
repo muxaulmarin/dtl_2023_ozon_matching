@@ -26,7 +26,8 @@ python -m ozon_matching.andrey_solution create-tfidf-similarity-features \
 ## Misha features
 bash ozon_matching/kopatych_solution/workflows/v11/dag.sh
 ## Sergey features
-### to be done
+mkdir data/preprocessed/nn
+python multibert_sub.py && python multibert_chstic_sub.py && python multibert_colors_sub.py
 
 # preparing dataset
 python -m ozon_matching.andrey_solution join-features \
