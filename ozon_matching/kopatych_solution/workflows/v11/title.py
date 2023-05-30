@@ -176,10 +176,7 @@ def fit_titles_model(data_dir: str = Option(...)):
 
 @cli.command()
 @log_cli
-def create_titles_features(
-    data_dir: str = Option(...),
-    fold: str = Option(...)
-):
+def create_titles_features(data_dir: str = Option(...), fold: str = Option(...)):
     pairs = read_parquet(os.path.join(data_dir, fold, "pairs.parquet"))
 
     model: TitleModel = read_model(os.path.join(data_dir, "titles_model.jbl"))

@@ -15,19 +15,14 @@ def dummy():
 
 @cli.command()
 @log_cli
-def split_data_for_cv(
-    data_dir: str = Option(...),
-    n_folds: int = Option(...)
-):
+def split_data_for_cv(data_dir: str = Option(...), n_folds: int = Option(...)):
 
-    pairs = read_parquet(
-        os.path.join(data_dir, "common", "train", "pairs.parquet")
-    )
+    pairs = read_parquet(os.path.join(data_dir, "common", "train", "pairs.parquet"))
     pairs = pairs.select(
         [
             pl.col("variantid1").cast(pl.Int64),
             pl.col("variantid2").cast(pl.Int64),
-            pl.col("target").cast(pl.Int8)
+            pl.col("target").cast(pl.Int8),
         ]
     )
 
@@ -54,45 +49,47 @@ def split_data_for_cv(
         )
     )
 
-    external_features = read_parquet('data/andrey_features/andrey_train.parquet')
+    external_features = read_parquet("data/andrey_features/andrey_train.parquet")
     external_features = external_features.drop(
-        ['cat3_grouped', 'variant_id_diff', 'category_level_2', 'category_level_3', 'category_level_4', 'target']
+        [
+            "cat3_grouped",
+            "variant_id_diff",
+            "category_level_2",
+            "category_level_3",
+            "category_level_4",
+            "target",
+        ]
     )
-    mapping = {
-        'BOTH': 0, 
-        'NONE': 1,
-        'ONLY ONE': 2
-    }
+    mapping = {"BOTH": 0, "NONE": 1, "ONLY ONE": 2}
     external_features = external_features.with_columns(
         [
-            pl.col('variantid1').cast(pl.Int64),
-            pl.col('variantid2').cast(pl.Int64),
-            pl.col('has_full_match_name').cast(pl.Int8),
-            pl.col('has_full_match_name_norm').cast(pl.Int8),
-            pl.col('has_full_match_name_tokens').cast(pl.Int8),
-            pl.col('has_full_match_name_norm_tokens').cast(pl.Int8),
+            pl.col("variantid1").cast(pl.Int64),
+            pl.col("variantid2").cast(pl.Int64),
+            pl.col("has_full_match_name").cast(pl.Int8),
+            pl.col("has_full_match_name_norm").cast(pl.Int8),
+            pl.col("has_full_match_name_tokens").cast(pl.Int8),
+            pl.col("has_full_match_name_norm_tokens").cast(pl.Int8),
             (
-                pl.col('pic_embeddings_resnet_v1_fillness')
+                pl.col("pic_embeddings_resnet_v1_fillness")
                 .apply(lambda x: mapping.get(x, -1))
                 .cast(pl.Int8)
-                .alias('pic_embeddings_resnet_v1_fillness')
+                .alias("pic_embeddings_resnet_v1_fillness")
             ),
             (
-                pl.col('color_parsed_fillness')
+                pl.col("color_parsed_fillness")
                 .apply(lambda x: mapping.get(x, -1))
                 .cast(pl.Int8)
-                .alias('color_parsed_fillness')
-            )
+                .alias("color_parsed_fillness")
+            ),
         ]
     )
     external_features = external_features.rename(
         {
             col: f"a__{col}"
             for col in external_features.columns
-            if col not in ('variantid1', 'variantid2')
+            if col not in ("variantid1", "variantid2")
         }
     )
-
 
     features = (
         titles_features.join(characteristics_features, on=["variantid1", "variantid2"])

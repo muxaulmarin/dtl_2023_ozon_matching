@@ -93,10 +93,7 @@ def fit_similarity_engine(data_dir: str = Option(...), vector_col: str = Option(
 
 @cli.command()
 @log_cli
-def create_similarity_features(
-    data_dir: str = Option(...),
-    fold: str = Option(...)
-):
+def create_similarity_features(data_dir: str = Option(...), fold: str = Option(...)):
     pairs = read_parquet(os.path.join(data_dir, fold, "pairs.parquet"))
 
     pic_similarity_engine: SimilarityEngine = read_model(

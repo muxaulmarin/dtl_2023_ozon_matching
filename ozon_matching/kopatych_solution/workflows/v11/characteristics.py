@@ -235,8 +235,7 @@ def fit_characteristics_model(data_dir: str = Option(...)):
 @cli.command()
 @log_cli
 def create_characteristics_features(
-    data_dir: str = Option(...),
-    fold: str = Option(...)
+    data_dir: str = Option(...), fold: str = Option(...)
 ):
     pairs = read_parquet(os.path.join(data_dir, fold, "pairs.parquet"))
 

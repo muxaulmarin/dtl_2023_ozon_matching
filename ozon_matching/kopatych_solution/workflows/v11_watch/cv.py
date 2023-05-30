@@ -15,19 +15,14 @@ def dummy():
 
 @cli.command()
 @log_cli
-def split_data_for_cv(
-    data_dir: str = Option(...),
-    n_folds: int = Option(...)
-):
+def split_data_for_cv(data_dir: str = Option(...), n_folds: int = Option(...)):
 
-    original_pairs = read_parquet(
-        os.path.join(data_dir, "common", "train", "pairs.parquet")
-    )
-    original_pairs = original_pairs.select(
+    pairs = read_parquet(os.path.join(data_dir, "common", "train", "pairs.parquet"))
+    pairs = pairs.select(
         [
             pl.col("variantid1").cast(pl.Int64),
             pl.col("variantid2").cast(pl.Int64),
-            pl.col("target").cast(pl.Int8)
+            pl.col("target").cast(pl.Int8),
         ]
     )
 

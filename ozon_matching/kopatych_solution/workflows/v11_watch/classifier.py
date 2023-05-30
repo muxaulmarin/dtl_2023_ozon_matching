@@ -35,20 +35,19 @@ def fit_model(data_dir: str = Option(...)):
         "boosting_type": "gbdt",
         "objective": "binary",
         "is_unbalance": True,
-        'n_estimators': 200 + 100 * 9,
+        "n_estimators": 200 + 100 * 9,
         "max_depth": -1,
-        'num_leaves': 2**6,
-        'min_data_in_leaf': 25 * 1,
-        'learning_rate': 0.005 * 24,
-        'lambda_l1': 0.3201297034523049,
-        'lambda_l2': 0.00320806117025634,
+        "num_leaves": 2**6,
+        "min_data_in_leaf": 25 * 1,
+        "learning_rate": 0.005 * 24,
+        "lambda_l1": 0.3201297034523049,
+        "lambda_l2": 0.00320806117025634,
         "max_bin": 255,
         "use_missing": True,
         "zero_as_missing": False,
         "random_state": 13,
-        'feature_fraction': 0.5 + 0.05 * 9
+        "feature_fraction": 0.5 + 0.05 * 9,
     }
-
 
     dataset = read_parquet(os.path.join(data_dir, "train", "dataset.parquet"))
     cv = KFold(n_splits=NFOLDS, shuffle=True, random_state=13)

@@ -1,3 +1,4 @@
+import string
 from difflib import SequenceMatcher
 
 
@@ -27,3 +28,28 @@ def longest_common_subsequence(s1, s2) -> int:
             ]
         )
     )
+
+
+class FilterToken:
+    def __init__(self, brands):
+        self.brands = brands
+        self.possible = set("qazwsxedcrfvtgbyhnujmikolp1234567890")
+        self.punctuation = string.punctuation
+
+    def is_token(self, token):
+        if len(token) == 1:
+            return False
+        for letter in token.lower():
+            if letter not in self.possible:
+                return False
+        return True
+
+    def replace_punctuation(self, input_string):
+        for punctuation in self.punctuation:
+            input_string = input_string.replace(punctuation, " ")
+        return " ".join(input_string.split())
+
+    def get_compatible_devices(self, text):
+        tokens = set(self.replace_punctuation(text).lower().split(" ")) - self.brands
+        tokens = [t for t in tokens if self.is_token(t)]
+        return set(tokens)

@@ -50,7 +50,6 @@ def fit_model(data_dir: str = Option(...)):
 
     dataset = read_parquet(os.path.join(data_dir, "train", "dataset.parquet"))
 
-
     cv = KFold(n_splits=NFOLDS, shuffle=True, random_state=13)
     X = dataset.drop(["variantid1", "variantid2", "target"]).to_pandas()
     y = dataset["target"].to_numpy()
@@ -65,7 +64,10 @@ def fit_model(data_dir: str = Option(...)):
             eval_set=[(X_valid, y_valid)],
             eval_metric=["auc"],
             early_stopping_rounds=50,
-            categorical_feature=['a__pic_embeddings_resnet_v1_fillness', 'a__color_parsed_fillness']
+            categorical_feature=[
+                "a__pic_embeddings_resnet_v1_fillness",
+                "a__color_parsed_fillness",
+            ],
         )
         write_model(os.path.join(data_dir, f"lgbm_{n}.jbl"), model)
         n += 1
@@ -186,9 +188,9 @@ def oof_predict(
 
     dataset = pl.from_pandas(dataset).select(
         [
-            pl.col('variantid1').cast(pl.UInt32),
-            pl.col('variantid2').cast(pl.UInt32),
-            pl.col('lgbm_oof_score').cast(pl.Float32)
+            pl.col("variantid1").cast(pl.UInt32),
+            pl.col("variantid2").cast(pl.UInt32),
+            pl.col("lgbm_oof_score").cast(pl.Float32),
         ]
     )
     print(dataset.shape)

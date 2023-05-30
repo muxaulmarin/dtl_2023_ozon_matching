@@ -3,21 +3,10 @@ from typing import Iterator, Tuple
 import numpy as np
 import polars as pl
 from sklearn.model_selection import StratifiedKFold
-from typer import Option, Typer
-from ozon_matching.kopatych_solution.utils import (
-    extract_category_levels,
-    get_and_create_dir,
-    log_cli,
-    read_json,
-    read_model,
-    read_parquet,
-    write_json,
-    write_model,
-    write_parquet,
-)
-import os
+from typer import Typer
 
 cli = Typer()
+
 
 def random_kfold(
     pairs: pl.DataFrame, k=5

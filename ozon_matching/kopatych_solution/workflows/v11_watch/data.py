@@ -29,7 +29,7 @@ def prepare_data(data_dir: str = Option(...)):
     data = data.unique(subset=["variantid"])
     data = extract_category_levels(data, [3, 4], category_col="categories")
 
-    data = data.filter(pl.col('category_level_4') == 'Ремешок для смарт-часов')
+    data = data.filter(pl.col("category_level_4") == "Ремешок для смарт-часов")
 
     write_parquet(
         data,

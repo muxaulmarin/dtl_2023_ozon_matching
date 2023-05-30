@@ -44,7 +44,7 @@ python $workflow/cv.py split-data-for-cv --data-dir $experiment_folder/$experime
 for fold in $(seq 1 $n_folds)
 do
     python $workflow/classifier.py fit-model --data-dir $experiment_folder/$experiment/cv_$fold
-    for fold_type in test train 
+    for fold_type in test train
     do
         python $workflow/classifier.py predict --data-dir $experiment_folder/$experiment/cv_$fold/$fold_type
         python $workflow/classifier.py evaluate --data-dir $experiment_folder/$experiment/cv_$fold --fold-type $fold_type

@@ -121,7 +121,7 @@ class TitleModel:
         return features
 
     def _predict(self, variantid1: int, variantid2: int) -> List[Union[int, float]]:
-        
+
         title1 = self.titles[variantid1]
         title2 = self.titles[variantid2]
         sim = (
