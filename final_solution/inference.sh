@@ -24,7 +24,7 @@ python -m ozon_matching.andrey_solution create-tfidf-similarity-features \
     --pairs-path data/preprocessed/test_pairs_wo_target.parquet \
     --output-file test.parquet
 ## Misha features
-### to be done
+bash ozon_matching/kopatych_solution/workflows/v11/dag.sh
 ## Sergey features
 ### to be done
 

@@ -32,7 +32,7 @@ python -m ozon_matching.andrey_solution create-tfidf-similarity-features \
     --pairs-path data/preprocessed/train_pairs.parquet \
     --output-file train.parquet
 ## Misha features
-### to be done
+bash ozon_matching/kopatych_solution/workflows/v11/dag.sh
 ## Sergey features
 ### to be done
 
