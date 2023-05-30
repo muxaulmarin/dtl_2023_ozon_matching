@@ -128,7 +128,7 @@ evaldf.to_parquet('test_chstic.parquet')
 
 nn_features = pd.read_parquet('test_mbert.parquet')
 nn_features = nn_features.merge(evaldf, on=["variantid1","variantid2"], how='left')
-nn_features.to_parquet('nn/test.parquet')
+nn_features.to_parquet('data/preprocessed/nn/test.parquet')
 
 
 # In[ ]:
