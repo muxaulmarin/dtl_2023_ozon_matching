@@ -49,4 +49,4 @@ do
     cp $experiment_folder/$experiment/$commod_folder/$fold/titles_features.parquet data/features/titles/$fold.parquet
 done
 
-rm -rf $experiment_folder
+# rm -rf $experiment_folder
