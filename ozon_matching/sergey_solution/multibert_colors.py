@@ -6,7 +6,7 @@
 
 import pandas as pd
 
-df = pd.read_parquet('hackathon_files_for_participants_ozon/train_data.parquet')
+df = pd.read_parquet('data/raw/train_data.parquet')
 
 
 # In[2]:
@@ -18,7 +18,7 @@ df.head()
 # In[3]:
 
 
-df_train_pairs = pd.read_parquet('hackathon_files_for_participants_ozon/train_pairs.parquet')
+df_train_pairs = pd.read_parquet('data/raw/train_pairs.parquet')
 
 
 # In[4]:
@@ -229,13 +229,13 @@ for tr, va in kf.split(ds_indexes):
 # In[16]:
 
 
-df_oof = pd.read_parquet('hackathon_files_for_participants_ozon/train_pairs.parquet')
+df_oof = pd.read_parquet('data/raw/train_pairs.parquet')
 df_oof['colorbert'] = oof
 df_oof.to_parquet('oof_colorbert.parquet')
 
-nn_features = pd.read_parquet('data/preprocessed/nn/train.parquet')["variantid1","variantid2","mbert","chstic"]
+nn_features = pd.read_parquet('data/preprocessed/nn_train.parquet')["variantid1","variantid2","mbert","chstic"]
 nn_features = nn_features.merge(df_oof, on=["variantid1","variantid2"], how='left')
-nn_features.to_parquet('data/preprocessed/nn/train.parquet')
+nn_features.to_parquet('data/preprocessed/nn_train.parquet')
 
 print(roc_auc_score(df_oof['target'], df_oof['colorbert']))
 df_oof.head()
