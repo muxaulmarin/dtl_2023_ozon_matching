@@ -48,7 +48,7 @@ class CatBoostCV:
             fold_model = cb.CatBoostClassifier(**self.model_params)
             fold_model.fit(
                 train_fold_pool,
-                eval_set=val_fold_pool,
+                eval_set=train_fold_pool,  # val_fold_pool,
                 verbose=verbose or self.model_params.get("early_stopping_rounds"),
             )
             self.models_.append(fold_model)

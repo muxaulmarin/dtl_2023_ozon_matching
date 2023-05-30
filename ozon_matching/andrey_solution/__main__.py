@@ -139,7 +139,16 @@ def join_features(
             pairs = pairs.join(
                 other=pl.read_parquet(part)
                 .with_columns([pl.col(["variantid1", "variantid2"]).cast(pl.UInt32)])
-                .select(pl.exclude(["__index_level_0__", "target"])),
+                .select(
+                    pl.exclude(
+                        [
+                            "__index_level_0__",
+                            "target",
+                            "color_parsed1",
+                            "color_parsed2",
+                        ]
+                    )
+                ),
                 how="left",
                 on=["variantid1", "variantid2"],
             )
@@ -156,16 +165,17 @@ def fit_catboost(
     experiment_path: Path = Option(...),
     folds_path: Path = None,
     chains_path: Path = None,
+    seed: Optional[int] = 777,
 ) -> None:
     logger.info(f"reading train from {train_path}...")
     train = pl.read_parquet(train_path)
 
     if folds_path is not None:
         logger.info(f"reading folds from {folds_path}...")
-        cv_splitter = partial(manual_split, folds=pl.read_parquet(folds_path))
+        cv_splitter = partial(manual_split, folds=pl.read_csv(folds_path))
     else:
-        logger.info("no folds given, falling back to simple kfold...")
-        cv_splitter = kfold_split
+        logger.info(f"no folds given, falling back to simple kfold with {seed = }...")
+        cv_splitter = partial(kfold_split, seed=seed)
 
     chains = None
     if chains_path is not None:

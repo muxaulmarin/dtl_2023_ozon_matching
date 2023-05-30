@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generator
+from typing import Generator, Optional
 
 import numpy as np
 import pandas as pd
@@ -10,8 +10,10 @@ from sklearn.metrics import auc, precision_recall_curve, roc_auc_score
 from sklearn.model_selection import KFold
 
 
-def kfold_split(x: pl.DataFrame, n_splits: int = 5) -> Generator:
-    return KFold(n_splits=n_splits, shuffle=True, random_state=777).split(x)
+def kfold_split(
+    x: pl.DataFrame, n_splits: int = 5, seed: Optional[int] = 777
+) -> Generator:
+    return KFold(n_splits=n_splits, shuffle=True, random_state=seed).split(x)
 
 
 def manual_split(x: pl.DataFrame, folds: pl.DataFrame) -> Generator:
@@ -20,10 +22,10 @@ def manual_split(x: pl.DataFrame, folds: pl.DataFrame) -> Generator:
     )
     for i in range(1, 6):
         variants = x.select(["variantid1", "variantid2"]).with_row_count()
-        train_variants = folds.filter(pl.col(f"fold_{i}_train").is_not_null()).select(
+        train_variants = folds.filter(pl.col(f"fold_{i}_train") == 1).select(
             ["variantid1", "variantid2", pl.lit(True).alias("included")]
         )
-        val_variants = folds.filter(pl.col(f"fold_{i}_train").is_not_null()).select(
+        val_variants = folds.filter(pl.col(f"fold_{i}_test") == 1).select(
             ["variantid1", "variantid2", pl.lit(True).alias("included")]
         )
 
