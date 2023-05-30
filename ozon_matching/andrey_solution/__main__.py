@@ -139,7 +139,7 @@ def join_features(
             pairs = pairs.join(
                 other=pl.read_parquet(part)
                 .with_columns([pl.col(["variantid1", "variantid2"]).cast(pl.UInt32)])
-                .select(pl.exclude("__index_level_0__")),
+                .select(pl.exclude(["__index_level_0__", "target"])),
                 how="left",
                 on=["variantid1", "variantid2"],
             )
