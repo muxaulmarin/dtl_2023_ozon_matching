@@ -6,7 +6,7 @@
 
 import pandas as pd
 
-df = pd.read_parquet('hackathon_files_for_participants_ozon/train_data.parquet')
+df = pd.read_parquet('data/raw/train_data.parquet')
 
 
 # In[2]:
@@ -18,7 +18,7 @@ df.head()
 # In[3]:
 
 
-df_train_pairs = pd.read_parquet('hackathon_files_for_participants_ozon/train_pairs.parquet')
+df_train_pairs = pd.read_parquet('/data/raw/train_pairs.parquet')
 
 
 # In[4]:
@@ -235,11 +235,11 @@ for tr, va in kf.split(ds_indexes):
         oof[va] = evaldf.scores.values
     ifold += 1
     
-df_oof = pd.read_parquet('hackathon_files_for_participants_ozon/train_pairs.parquet')
+df_oof = pd.read_parquet('data/raw/train_pairs.parquet')
 df_oof['chstic'] = oof
 df_oof.to_parquet('oof_chstic.parquet')
 
 nn_features = pd.read_parquet('oof_mbert.parquet')["variantid1","variantid2","mbert"]
 nn_features = nn_features.merge(evaldf, on=["variantid1","variantid2"], how='left')
-nn_features.to_parquet('data/preprocessed/nn/train.parquet')
+nn_features.to_parquet('data/features/nn_train.parquet')
 
