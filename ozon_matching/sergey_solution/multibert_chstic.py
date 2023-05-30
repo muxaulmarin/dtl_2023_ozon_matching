@@ -241,5 +241,5 @@ df_oof.to_parquet('oof_chstic.parquet')
 
 nn_features = pd.read_parquet('oof_mbert.parquet')["variantid1","variantid2","mbert"]
 nn_features = nn_features.merge(evaldf, on=["variantid1","variantid2"], how='left')
-nn_features.to_parquet('nn/train.parquet')
+nn_features.to_parquet('data/preprocessed/nn/train.parquet')
 
