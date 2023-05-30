@@ -6,7 +6,7 @@
 
 import pandas as pd
 
-df = pd.read_parquet('hackathon_files_for_participants_ozon/train_data.parquet')
+df = pd.read_parquet('data/raw/train_data.parquet')
 
 
 # In[2]:
@@ -18,7 +18,7 @@ df.head()
 # In[3]:
 
 
-df_train_pairs = pd.read_parquet('hackathon_files_for_participants_ozon/train_pairs.parquet')
+df_train_pairs = pd.read_parquet('data/raw/train_pairs.parquet')
 
 
 # In[4]:
