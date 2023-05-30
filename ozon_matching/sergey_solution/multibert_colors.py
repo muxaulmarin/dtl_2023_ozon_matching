@@ -233,9 +233,9 @@ df_oof = pd.read_parquet('hackathon_files_for_participants_ozon/train_pairs.parq
 df_oof['colorbert'] = oof
 df_oof.to_parquet('oof_colorbert.parquet')
 
-nn_features = pd.read_parquet('nn/train.parquet')["variantid1","variantid2","mbert","chstic"]
+nn_features = pd.read_parquet('data/preprocessed/nn/train.parquet')["variantid1","variantid2","mbert","chstic"]
 nn_features = nn_features.merge(df_oof, on=["variantid1","variantid2"], how='left')
-nn_features.to_parquet('nn/train.parquet')
+nn_features.to_parquet('data/preprocessed/nn/train.parquet')
 
 print(roc_auc_score(df_oof['target'], df_oof['colorbert']))
 df_oof.head()
