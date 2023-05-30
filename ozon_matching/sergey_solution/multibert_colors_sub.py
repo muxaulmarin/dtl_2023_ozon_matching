@@ -6,7 +6,7 @@
 
 import pandas as pd
 
-df = pd.read_parquet('hackathon_files_for_participants_ozon/test_data.parquet')
+df = pd.read_parquet('data/raw/test_data.parquet')
 
 
 # In[2]:
@@ -18,7 +18,7 @@ df.head()
 # In[3]:
 
 
-df_train_pairs = pd.read_parquet('hackathon_files_for_participants_ozon/test_pairs_wo_target.parquet')
+df_train_pairs = pd.read_parquet('data/raw/test_pairs_wo_target.parquet')
 
 
 # In[4]:
@@ -110,9 +110,9 @@ for t in tqdm.tqdm(range(len(dataset))):
 evaldf = pd.DataFrame(evaldf)
 evaldf.columns = ["variantid1","variantid2","colorbert"]
 
-nn_features = pd.read_parquet('data/preprocessed/nn/test.parquet')
+nn_features = pd.read_parquet('data/preprocessed/nn_test.parquet')
 nn_features = nn_features.merge(evaldf, on=["variantid1","variantid2"], how='left')
-nn_features.to_parquet('data/preprocessed/nn/test.parquet')
+nn_features.to_parquet('data/preprocessed/nn_test.parquet')
 
 
 # In[14]:
