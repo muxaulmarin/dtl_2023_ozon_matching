@@ -66,7 +66,7 @@ def pr_auc_macro_t(
     unique_cats, counts = np.unique(categories, return_counts=True)
 
     if counts.min() < t:
-        raise ValueError("")
+        raise ValueError(f"{counts.min()} - {t}")
 
     weights = []
     pr_aucs = []

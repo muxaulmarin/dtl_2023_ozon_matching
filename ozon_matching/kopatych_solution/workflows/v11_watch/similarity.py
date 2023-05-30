@@ -49,7 +49,6 @@ class SimilarityEngine:
             vector_b = self.vectors[self.mapping[index_b]].reshape(1, -1)
             return np.dot(vector_a, vector_b.T)
         except KeyError:
-            logger.info(f"Error for {index_a} and {index_b}")
             return 0
 
     def predict(self, data: pl.DataFrame):
@@ -93,7 +92,10 @@ def fit_similarity_engine(data_dir: str = Option(...), vector_col: str = Option(
 
 @cli.command()
 @log_cli
-def create_similarity_features(data_dir: str = Option(...), fold: str = Option(...)):
+def create_similarity_features(
+    data_dir: str = Option(...),
+    fold: str = Option(...),
+):
     pairs = read_parquet(os.path.join(data_dir, fold, "pairs.parquet"))
 
     pic_similarity_engine: SimilarityEngine = read_model(

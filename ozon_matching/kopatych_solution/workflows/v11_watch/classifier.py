@@ -35,21 +35,21 @@ def fit_model(data_dir: str = Option(...)):
         "boosting_type": "gbdt",
         "objective": "binary",
         "is_unbalance": True,
-        "n_estimators": 5000,
+        "n_estimators": 200 + 100 * 9,
         "max_depth": -1,
-        "num_leaves": 127,
-        "min_data_in_leaf": 10,
-        "learning_rate": 0.025,
-        "lambda_l1": 1e-3,
-        "lambda_l2": 1e-3,
+        "num_leaves": 2**6,
+        "min_data_in_leaf": 25 * 1,
+        "learning_rate": 0.005 * 24,
+        "lambda_l1": 0.3201297034523049,
+        "lambda_l2": 0.00320806117025634,
         "max_bin": 255,
         "use_missing": True,
         "zero_as_missing": False,
         "random_state": 13,
+        "feature_fraction": 0.5 + 0.05 * 9,
     }
 
     dataset = read_parquet(os.path.join(data_dir, "train", "dataset.parquet"))
-
     cv = KFold(n_splits=NFOLDS, shuffle=True, random_state=13)
     X = dataset.drop(["variantid1", "variantid2", "target"]).to_pandas()
     y = dataset["target"].to_numpy()
@@ -64,10 +64,6 @@ def fit_model(data_dir: str = Option(...)):
             eval_set=[(X_valid, y_valid)],
             eval_metric=["auc"],
             early_stopping_rounds=50,
-            categorical_feature=[
-                "a__pic_embeddings_resnet_v1_fillness",
-                "a__color_parsed_fillness",
-            ],
         )
         write_model(os.path.join(data_dir, f"lgbm_{n}.jbl"), model)
         n += 1
@@ -116,7 +112,10 @@ def evaluate(
     )
     logger.info(df.head())
 
-    pr_auc_1000 = pr_auc_macro_t(df, cat_column="category_level_3", t=1000)
+    try:
+        pr_auc_1000 = pr_auc_macro_t(df, cat_column="category_level_3", t=1000)
+    except ValueError:
+        pr_auc_1000 = pr_auc_macro_t(df, cat_column="category_level_3", t=100)
     pr_auc_50 = pr_auc_macro_t(df, cat_column="category_level_3", t=50)
     rocauc = roc_auc_score(df["target"].values, df["scores"].values)
     q95 = np.quantile(df["scores"].values, 0.95)
@@ -184,17 +183,10 @@ def oof_predict(
                 model.predict_proba(dataset[model.feature_name_])[:, 1].reshape(-1, 1)
             )
     predict = np.mean(predicts, axis=0)
-    dataset["lgbm_oof_score"] = predict
-
-    dataset = pl.from_pandas(dataset).select(
-        [
-            pl.col("variantid1").cast(pl.UInt32),
-            pl.col("variantid2").cast(pl.UInt32),
-            pl.col("lgbm_oof_score").cast(pl.Float32),
-        ]
+    dataset["target"] = predict
+    dataset[["variantid1", "variantid2", "target"]].to_csv(
+        os.path.join(data_dir, "submit_folds.csv"), index=False
     )
-    print(dataset.shape)
-    dataset.write_parquet(os.path.join(data_dir, "lgbm_oof_scores_test.parquet"))
 
 
 if __name__ == "__main__":
