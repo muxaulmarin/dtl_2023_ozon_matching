@@ -76,19 +76,16 @@ bash ozon_matching/kopatych_solution/workflows/v11/dag.sh
 Внутри поддиректорий лежат файлы `test.parquet`
 
 ### Фичи из сеток
-Если предварительно не запускалось обучение, то надо запустить шаги из обучения для дообучения бертов или скачать их и распаковать (10Gb)
-предполагается, что данные лежат в папке `hackathon_files_for_participants_ozon` на уровне запуска скриптов, а результат появится в папке nn в виде двух паркетов train и test с фичами  `chstic`, `mbert`, `colorbert`:
+Если предварительно не запускалось обучение, то надо запустить шаги из обучения для дообучения бертов или скачать их и распаковать (10Gb) результат появится в папке data/features в виде двух паркетов nn_train и nn_test с фичами  `chstic`, `mbert`, `colorbert`:
 ```bash
 wget https://storage.yandexcloud.net/lcr/models_weights.tar?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=YCAJE3aFMqzbzkXdc3Q23murc%2F20230530%2Fru-central1%2Fs3%2Faws4_request&X-Amz-Date=20230530T193615Z&X-Amz-Expires=864000&X-Amz-Signature=0449107A1F498B238C9CDA2DEB42225B54F3567D8F61B2AF6221EF3C77DE9B4A&X-Amz-SignedHeaders=host
 tar -xf models_weights.tarmodels_weights.tar
-mkdir nn
-python multibert.py && python multibert_chstic.py && python multibert_colors.py
+python ozon_matching/sergey_solution/multibert.py && python ozon_matching/sergey_solution/multibert_chstic.py && python ozon_matching/sergey_solution/multibert_colors.py
 ```
 
 #### Инференс
 ```bash
-mkdir nn
-python multibert_sub.py && python multibert_chstic_sub.py && python multibert_colors_sub.py
+python ozon_matching/sergey_solution/multibert_sub.py && python ozon_matching/sergey_solution/multibert_chstic_sub.py && python ozon_matching/sergey_solution/multibert_colors_sub.py
 ```
 
 
