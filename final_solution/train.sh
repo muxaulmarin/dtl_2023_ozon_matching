@@ -34,7 +34,11 @@ python -m ozon_matching.andrey_solution create-tfidf-similarity-features \
 ## Misha features
 bash ozon_matching/kopatych_solution/workflows/v11/dag.sh
 ## Sergey features
-### to be done
+wget https://storage.yandexcloud.net/lcr/models_weights.tar?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=YCAJE3aFMqzbzkXdc3Q23murc%2F20230530%2Fru-central1%2Fs3%2Faws4_request&X-Amz-Date=20230530T193615Z&X-Amz-Expires=864000&X-Amz-Signature=0449107A1F498B238C9CDA2DEB42225B54F3567D8F61B2AF6221EF3C77DE9B4A&X-Amz-SignedHeaders=host
+tar -xf models_weights.tarmodels_weights.tar
+mkdir data/preprocessed/nn
+python multibert.py && python multibert_chstic.py && python multibert_colors.py
+
 
 # splits generation
 ## to be done
